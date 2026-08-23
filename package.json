@@ -1,0 +1,51 @@
+{
+  "name": "figma-to-code-kit",
+  "version": "0.1.0",
+  "description": "Extract Figma designs into exact specs — geometry, variable bindings, the full component state matrix — so an AI coding agent builds against facts instead of impressions. Framework-agnostic, config-driven, with a render-and-diff verification loop.",
+  "license": "MIT",
+  "author": "Karim Hekal",
+  "private": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "figma:extract": "node scripts/figma-extract.js",
+    "figma:render": "node scripts/figma-render.js",
+    "figma:pixel": "node scripts/figma-pixel.js",
+    "figma:icon": "node scripts/figma-icon.js",
+    "figma:asset": "node scripts/figma-asset.js",
+    "figma:text": "node scripts/figma-text.js",
+    "tokens:build": "node scripts/build-tokens.js",
+    "tokens:typography": "node scripts/build-typography.js",
+    "config:check": "node scripts/config-check.js"
+  },
+  "dependencies": {
+    "pngjs": "^7.0.0"
+  },
+  "files": [
+    "scripts",
+    "skills",
+    "docs",
+    "figma.config.example.json",
+    ".env.example",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "figma",
+    "design-tokens",
+    "design-to-code",
+    "react-native",
+    "claude",
+    "ai-agent",
+    "mcp"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/karimhekal/figma-to-code-kit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/karimhekal/figma-to-code-kit/issues"
+  },
+  "homepage": "https://github.com/karimhekal/figma-to-code-kit#readme"
+}

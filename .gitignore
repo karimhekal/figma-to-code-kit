@@ -1,0 +1,46 @@
+# ─── secrets ──────────────────────────────────────────────────────────────────
+# The Figma personal access token lives here and must never be committed. A token in git
+# history is compromised even after the file is deleted — revoke it in Figma → Settings →
+# Security and mint a new one. `.env.example` is the committed template.
+.env
+.env.*
+!.env.example
+
+# NOTE: figma.config.json is deliberately NOT ignored. It is per-project configuration with no
+# secrets in it — file keys, paths, component names — and committing it is what makes the
+# pipeline reproducible for everyone on the team (and in CI). The TOKEN never goes in it;
+# `auth.envVar` / `auth.envFile` only name WHERE the token is read from.
+
+# ─── dependencies ─────────────────────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/releases
+!.yarn/plugins
+!.yarn/versions
+
+# ─── kit output ───────────────────────────────────────────────────────────────
+# Renders and pixel-probe scratch: regenerable from Figma at any time, and PNGs bloat a repo.
+# The default render directory is outside the project (paths.renderDir), but a project that
+# points it inside wants these ignored.
+figma-renders/
+*.figma.png
+tmp/
+.tmp/
+
+# ─── logs ─────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-error.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# ─── OS / editor noise ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~

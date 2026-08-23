@@ -1,0 +1,133 @@
+{
+  "// files": "Figma file keys, from the URL: figma.com/design/<FILE_KEY>/... 'default' is the design-system library. 'screens' is the product file when your org splits them. 'volatile' lists keys that get republished wholesale, so their node ids renumber — never trust a written-down id for those.",
+  "files": {
+    "default": "PUT_YOUR_DESIGN_SYSTEM_FILE_KEY_HERE",
+    "screens": "PUT_YOUR_SCREENS_FILE_KEY_HERE",
+    "volatile": ["screens"]
+  },
+
+  "// auth": "Where the Figma personal access token comes from. The env var wins; envFile is the fallback. NEVER commit the token — add the envFile to .gitignore.",
+  "auth": { "envVar": "FIGMA_ACCESS_TOKEN", "envFile": ".env.local" },
+
+  "// design": "The frame your mocks are drawn on, plus the widths and theme modes you verify against.",
+  "design": {
+    "frameWidth": 393,
+    "frameHeight": 852,
+    "compareWidths": [393, 430],
+    "modes": ["light", "dark"]
+  },
+
+  "// paths": "Where generated artifacts land, relative to the project root.",
+  "paths": {
+    "tokensDir": "src/theme/tokens",
+    "variablesExport": "figma-variables",
+    "iconRegistry": "src/components/icons/registry.generated.json",
+    "graphicsDir": "src/assets/graphics",
+    "renderDir": "/tmp/figma-renders",
+    "fontSources": "font-sources",
+    "fontsOut": "src/assets/fonts"
+  },
+
+  "// tokens.index": "Modules the extractor indexes so it can suggest a code reference for a value it finds in Figma. 'exports' can be a list (the export name is the reference prefix) or a map of exportName -> reference prefix. 'nested' indexes inside a per-mode wrapper: themes.light.components is referenced in code as components.*",
+  "tokens": {
+    "index": [
+      {
+        "path": "src/theme/tokens/palette.generated.ts",
+        "exports": { "palette": "palette", "cornerRadius": "cornerRadius" }
+      },
+      {
+        "path": "src/theme/tokens/themes.generated.ts",
+        "nested": [{ "export": "themes", "perMode": true, "pick": ["components", "appTheme"] }]
+      }
+    ],
+
+    "// spacing": "Most design systems do NOT bind Figma variables to gap/padding, so the ramp is code-owned and the extractor checks values against it. Set tokenizedInFigma:true if yours DOES bind them — verify by extracting a component and seeing whether gap comes back ✓bound.",
+    "spacing": {
+      "tokenizedInFigma": false,
+      "rampPath": "src/theme/tokens/space.ts",
+      "rampExport": "space",
+      "refTemplate": "space[{n}]",
+      "banned": ["metrics.spacing"]
+    },
+
+    "// typography": "The generated text ramp and how text is written in code. forbiddenProps are the props your project refuses to let anyone hand-set on DS text (with the reason the agent is shown). Start this empty and add entries only when you hit a real rendering reason.",
+    "typography": {
+      "rampPath": "src/theme/tokens/typography.generated.ts",
+      "rampExport": "textStyles",
+      "component": "AppText",
+      "suggestionTemplate": "<{component} variant={variant} weight={weight}>",
+      "forbiddenProps": ["fontSize", "fontFamily"],
+      "forbiddenReason": "These come from the generated ramp — hand-setting them silently drifts from the design system."
+    }
+  },
+
+  "// components": "The code side of the design system. The agent scans 'index' before building anything, so reuse beats reinvention. 'instanceMap' translates a Figma instance name to your component when the names differ.",
+  "components": {
+    "index": "src/components/ui/index.ts",
+    "prefix": "App",
+    "themeAccessor": "useTheme()",
+    "instanceMap": { "List": "AppListItem", "Toast": "AppToast" },
+    "showcase": "src/screens/Showcase/ShowcaseScreen.tsx",
+    "codeConnect": {
+      "enabled": false,
+      "glob": "src/components/ui/**/*.figma.tsx",
+      "parseCommand": "npx figma connect parse"
+    }
+  },
+
+  "// icons": "extraNamedColors are the named colors Figma emits that must become currentColor (hex is always handled). rtlMirrored lists icons that flip under RTL — a UX decision, not something to auto-detect.",
+  "icons": {
+    "extraNamedColors": ["white", "black"],
+    "rtlMirrored": ["arrow-left", "arrow-right", "chevron-left", "chevron-right"]
+  },
+
+  "// text": "Noise filtering for copy extraction. Add your locale's Figma placeholder words and any currency/number formats that are not translatable copy.",
+  "text": {
+    "noiseWords": ["Title", "Subtitle", "Label", "text"],
+    "noisePatterns": ["^[\\d.,\\s%+-]+$"],
+    "rtl": false
+  },
+
+  "// variables": "How the Figma variables export maps onto generated files. 'sources' matches exported filenames to a role — one 'primitives' entry plus one 'mode:<name>' per theme mode. 'groups' routes each top-level group in the export to a destination. Run the export once and look at the filenames + top-level keys to fill this in.",
+  "variables": {
+    "sources": [
+      { "match": "^primitives.*\\.tokens\\.json$", "role": "primitives" },
+      { "match": "light.*\\.tokens\\.json$", "role": "mode:light" },
+      { "match": "dark.*\\.tokens\\.json$", "role": "mode:dark" }
+    ],
+    "groups": {
+      "color": "palette",
+      "Corner radius": "radius",
+      "light base colors": "ramp:light",
+      "dark base colors": "ramp:dark",
+      "Component": "components",
+      "Component.App Theme": "semantic"
+    },
+    "ignoreKeys": []
+  },
+
+  "// typographySource": "Figma TEXT STYLES are not variables, so they are fetched from the API separately. Prefixes match your style-naming convention ('<prefix><Category>/<Weight>'). The FIRST prefix is the base — it drives metrics and faces. Add more only when a second style tree's faces diverge from the base (a second locale, say): those contribute face OVERRIDES only. faceFixes corrects known Figma authoring bugs on export, loudly.",
+  "typographySource": {
+    "prefixes": ["Mobile/"],
+    "order": [
+      "display",
+      "largeTitle",
+      "title1",
+      "title2",
+      "title3",
+      "headline",
+      "body",
+      "subheadline",
+      "footnote",
+      "caption1",
+      "caption2"
+    ],
+    "faceFixes": {}
+  },
+
+  "// commands": "Your project's real commands. config-check.js verifies these resolve, and the skill tells the agent to run them.",
+  "commands": { "tokensBuild": "npm run tokens:build", "validate": "npm run validate" },
+
+  "// gotchas": "Per-library incidents worth remembering — a misnamed component, a hole in a token set, a variant axis your code deliberately ignores. Starts empty; add one line per surprise instead of re-deriving it next quarter.",
+  "gotchas": []
+}
