@@ -59,9 +59,10 @@ Custom-building something that already exists is a defect, every time. Check bot
 
 1. **Code:** scan the barrel at `components.index`. If a primitive fits, compose it. Never
    hand-roll a raw view/text element for something the design system already ships.
-2. **Figma:** the element is almost always a component instance — the extractor prints
-   `[INSTANCE] <name>` in the node tree. That name is the component to reach for; translate
-   it through `components.instanceMap` when the design's name and the code's name differ.
+2. **Figma:** the element is almost always a component instance — the extractor prints each
+   node as `• <name> [<TYPE>]`, so an instance reads `• Toast [INSTANCE]`. That name is the
+   component to reach for; translate it through `components.instanceMap` when the design's
+   name and the code's name differ.
 3. **Verify the instance's BOUND VALUES against the component's tokens.** An instance keeps
    its variant label (`Style=…`) even when the designer has overridden fill, text, radius,
    padding, gap or size away from that variant's defaults. Extract the design-system
