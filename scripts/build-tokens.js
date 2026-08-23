@@ -384,6 +384,17 @@ function ruleFor(segments) {
 const palette = {};
 const radiusScale = {};
 let radiusExportName = null;
+
+// What each bucket is CALLED in the consuming codebase. These names go into BOTH the generated
+// export/slot keys and the refs recorded in the variable map, so they must match the accessors the
+// app really uses — a ref naming a bucket the code does not have sends every suggestion nowhere.
+const EXPORT_NAMES = (cfg.variables && cfg.variables.exportNames) || {};
+const NAME = {
+  palette: EXPORT_NAMES.palette || 'palette',
+  ramps: EXPORT_NAMES.ramps || 'ramps',
+  semantic: EXPORT_NAMES.semantic || 'semantic',
+  components: EXPORT_NAMES.components || 'components',
+};
 const ramps = {}; // mode -> ramp object
 const themes = {}; // mode -> { semantic, components }
 const unrouted = [];
@@ -399,7 +410,7 @@ for (const s of sources) if (s.mode) themes[s.mode] = { semantic: {}, components
  * the group.
  */
 function bucketFor(dest, ctx, groupPath) {
-  if (dest === 'palette') return { bucket: palette, refRoot: ['palette'] };
+  if (dest === 'palette') return { bucket: palette, refRoot: [NAME.palette] };
   if (dest === 'radius') {
     // The radius export is named after the group it came from ("Corner radius" -> cornerRadius),
     // so the generated identifier matches what the library actually calls the scale.
@@ -409,7 +420,7 @@ function bucketFor(dest, ctx, groupPath) {
   if (dest.startsWith('ramp:')) {
     const mode = dest.slice(5).trim();
     ramps[mode] = ramps[mode] || {};
-    return { bucket: ramps[mode], refRoot: ['ramps', mode] };
+    return { bucket: ramps[mode], refRoot: [NAME.ramps, mode] };
   }
   // semantic + components are per-mode, so they need a mode:<name> source to land in.
   if (!ctx.mode) {
@@ -418,8 +429,8 @@ function bucketFor(dest, ctx, groupPath) {
   }
   const theme = (themes[ctx.mode] = themes[ctx.mode] || { semantic: {}, components: {} });
   return dest === 'semantic'
-    ? { bucket: theme.semantic, refRoot: ['semantic'] }
-    : { bucket: theme.components, refRoot: ['components'] };
+    ? { bucket: theme.semantic, refRoot: [NAME.semantic] }
+    : { bucket: theme.components, refRoot: [NAME.components] };
 }
 
 /** Merge `value` into `bucket` at `relSegments` (the path relative to the routed group). */
@@ -541,8 +552,8 @@ for (const m of modeOrder) if (ramps[m]) orderedRamps[m] = ramps[m];
 for (const m of Object.keys(ramps)) if (!orderedRamps[m]) orderedRamps[m] = ramps[m];
 
 const primitiveExports = {};
-if (Object.keys(palette).length) primitiveExports.palette = palette;
-if (Object.keys(orderedRamps).length) primitiveExports.ramps = orderedRamps;
+if (Object.keys(palette).length) primitiveExports[NAME.palette] = palette;
+if (Object.keys(orderedRamps).length) primitiveExports[NAME.ramps] = orderedRamps;
 if (radiusExportName && Object.keys(radiusScale).length) {
   primitiveExports[radiusExportName] = radiusScale;
 }
@@ -559,7 +570,12 @@ for (const mode of Object.keys(themes)) {
   }
 }
 if (Object.keys(themes).length) {
-  emit('themes.generated.ts', { themes });
+  // Rename the per-mode slots to the project's vocabulary on the way out.
+  const renamed = {};
+  for (const [mode, t] of Object.entries(themes)) {
+    renamed[mode] = { [NAME.semantic]: t.semantic, [NAME.components]: t.components };
+  }
+  emit('themes.generated.ts', { themes: renamed });
   written.push(`themes.generated.ts (modes: ${Object.keys(themes).join(', ')})`);
 }
 

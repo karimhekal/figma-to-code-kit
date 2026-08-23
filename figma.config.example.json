@@ -103,7 +103,15 @@
       "Component": "components",
       "Component.App Theme": "semantic"
     },
-    "ignoreKeys": []
+    "ignoreKeys": [],
+
+    "// exportNames": "What the generated buckets are CALLED in YOUR codebase. The kit's defaults are just its own vocabulary — if your app already says baseColors and appTheme, set them here. Get this wrong and every token reference the extractor prints names an accessor that does not exist in your code. (The radius scale is named after its own Figma group, so it is not listed here.)",
+    "exportNames": {
+      "palette": "palette",
+      "ramps": "ramps",
+      "semantic": "semantic",
+      "components": "components"
+    }
   },
 
   "// typographySource": "Figma TEXT STYLES are not variables, so they are fetched from the API separately. Prefixes match your style-naming convention ('<prefix><Category>/<Weight>'). The FIRST prefix is the base — it drives metrics and faces. Add more only when a second style tree's faces diverge from the base (a second locale, say): those contribute face OVERRIDES only. faceFixes corrects known Figma authoring bugs on export, loudly.",

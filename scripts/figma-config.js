@@ -98,6 +98,11 @@ const DEFAULTS = {
   variables: {
     // Each source: { match: <regex source, case-insensitive>, role: 'primitives' | 'mode:<name>' }
     sources: [],
+    // What the generated buckets are CALLED in your codebase. The kit's defaults are only its own
+    // vocabulary — a project that already calls its ramp set `baseColors` and its semantic layer
+    // `appTheme` must say so here, or every token reference the extractor prints names an accessor
+    // that does not exist in the code. (The radius scale is named after its own Figma group.)
+    exportNames: { palette: 'palette', ramps: 'ramps', semantic: 'semantic', components: 'components' },
     // Where top-level groups in the export end up:
     //   'palette' | 'radius' | 'ramp:<mode>' | 'semantic' | 'components' | 'ignore'
     groups: {},
