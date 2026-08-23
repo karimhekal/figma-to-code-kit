@@ -16,7 +16,7 @@
  *
  *   # find content runs on a row (locate an icon, a label, a divider, an edge): prints the
  *   # x-ranges where the row differs from the background, in PNG px and design px:
- *   node scripts/figma-pixel.js <png> --row 388 [--thresh 150] [--min 4] [--invert]
+ *   node scripts/figma-pixel.js <png> --row 388 [--thresh 150] [--min 4] [--invert] [--bg RRGGBB]
  *
  * Sampled values are COMPOSITED, so pair them with the token you actually used: a
  * semi-transparent token only matches once it is composited over what is behind it (e.g. a 4%
@@ -53,7 +53,7 @@ const file = argv[0];
 if (!file || file.startsWith('--')) {
   console.error(
     'Usage: node scripts/figma-pixel.js <png> [--design W] ' +
-      '[--row Y [--thresh T] [--min N] [--invert] | <x> <y> ...]',
+      '[--bg RRGGBB] [--row Y [--thresh T] [--min N] [--invert] | <x> <y> ...]',
   );
   process.exit(1);
 }
@@ -63,6 +63,9 @@ let row = null;
 let thresh = 150;
 let min = 4;
 let invert = false; // dark render: content is BRIGHTER than the background
+// The background transparent pixels are composited over. White matches a light-mode screen;
+// pass --bg for a dark surface (and you will usually want --invert with it).
+let bg = [255, 255, 255];
 const nums = [];
 for (let i = 1; i < argv.length; i++) {
   const a = argv[i];
@@ -71,7 +74,15 @@ for (let i = 1; i < argv.length; i++) {
   else if (a === '--thresh') thresh = Number(argv[++i]);
   else if (a === '--min') min = Number(argv[++i]);
   else if (a === '--invert') invert = true;
-  else nums.push(Number(a));
+  else if (a === '--bg') {
+    const raw = String(argv[++i] || '').trim();
+    const m = /^#?([0-9a-f]{6})$/i.exec(raw);
+    if (!m) {
+      console.error(`--bg expects a 6-digit hex colour (e.g. --bg 101014); got "${raw}".`);
+      process.exit(1);
+    }
+    bg = [0, 2, 4].map((k) => parseInt(m[1].slice(k, k + 2), 16));
+  } else nums.push(Number(a));
 }
 
 // Design-space coords are the useful unit (they match what the design tool shows), so fall back
@@ -102,6 +113,26 @@ const px = (x, y) => {
   const i = (y * width + x) * 4;
   return [data[i], data[i + 1], data[i + 2], data[i + 3]];
 };
+
+/**
+ * Composite a pixel over the assumed page background.
+ *
+ * This matters more than it looks. Figma renders a component with a TRANSPARENT background
+ * unless the node itself paints one — and a fully transparent pixel is stored as rgba(0,0,0,0).
+ * Test that raw and every empty pixel reads as pure black, i.e. as "dark content": a row scan
+ * then reports one giant run covering the whole image and the real edges vanish. Composite over
+ * the background you will actually view the component on (white by default, --bg to change) and
+ * transparent correctly becomes background, exactly as your eye sees it on screen.
+ */
+const composite = (r, g, b, a) => {
+  if (a === 255) return [r, g, b];
+  const t = a / 255;
+  return [
+    Math.round(r * t + bg[0] * (1 - t)),
+    Math.round(g * t + bg[1] * (1 - t)),
+    Math.round(b * t + bg[2] * (1 - t)),
+  ];
+};
 const inBounds = (x, y) => x >= 0 && x < width && y >= 0 && y < height;
 
 console.log(
@@ -122,7 +153,7 @@ if (row !== null) {
   let inRun = false;
   let start = 0;
   for (let x = 0; x < width; x++) {
-    const [r, g, b] = px(x, y);
+    const [r, g, b] = composite(...px(x, y));
     const content = isContent(r, g, b);
     if (content && !inRun) {
       inRun = true;
@@ -160,8 +191,20 @@ if (row !== null) {
     }
     const [r, g, b, a] = px(x, y);
     const hex = [r, g, b].map((c) => c.toString(16).padStart(2, '0')).join('');
+    if (a === 255) {
+      console.log(`${label} -> rgb(${r},${g},${b})  #${hex}`);
+      continue;
+    }
+    // Partly or fully transparent. Report BOTH: the stored paint (which is what you compare
+    // against a token, since a token is authored without a background) and what the eye actually
+    // sees once it composites. A fully transparent pixel stores as black — saying only "rgb(0,0,0)"
+    // has sent people hunting for a black fill that does not exist.
+    const [cr, cg, cb] = composite(r, g, b, a);
+    const chex = [cr, cg, cb].map((c) => c.toString(16).padStart(2, '0')).join('');
+    const note = a === 0 ? 'fully transparent — nothing painted here' : `a=${(a / 255).toFixed(2)}`;
     console.log(
-      `${label} -> rgb(${r},${g},${b})${a < 255 ? ` a=${(a / 255).toFixed(2)}` : ''}  #${hex}`,
+      `${label} -> rgb(${r},${g},${b}) #${hex}  [${note}]  ` +
+        `over #${bg.map((c) => c.toString(16).padStart(2, '0')).join('')} it reads rgb(${cr},${cg},${cb}) #${chex}`,
     );
   }
 }

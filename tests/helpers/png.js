@@ -45,4 +45,26 @@ function dimensions(buffer) {
   return { width: png.width, height: png.height };
 }
 
-module.exports = { solidPng, withChangedPixel, dimensions };
+/**
+ * A transparent canvas with one opaque horizontal bar — the shape Figma actually returns.
+ *
+ * A component render has NO background unless the node paints one, so every pixel outside the
+ * artwork is rgba(0,0,0,0): transparent, but stored as black. This is the fixture that proves
+ * figma-pixel composites before testing darkness instead of counting empty space as ink.
+ */
+function transparentWithBar(width, height, barFrom, barTo, [r, g, b]) {
+  const png = new PNG({ width, height });
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const o = (y * width + x) * 4;
+      const inBar = x >= barFrom && x < barTo;
+      png.data[o] = inBar ? r : 0;
+      png.data[o + 1] = inBar ? g : 0;
+      png.data[o + 2] = inBar ? b : 0;
+      png.data[o + 3] = inBar ? 255 : 0;
+    }
+  }
+  return PNG.sync.write(png);
+}
+
+module.exports = { solidPng, withChangedPixel, dimensions, transparentWithBar };

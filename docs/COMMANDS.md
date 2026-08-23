@@ -85,21 +85,37 @@ that plain HTTP retry logic misses.
 ### `figma-pixel.js` — measure the render, don't eyeball it
 
 ```bash
-node scripts/figma-pixel.js <png> [--design W] <x> <y> [<x> <y> ...]
-node scripts/figma-pixel.js <png> --design W --row <y> [--thresh T] [--min N] [--invert]
+node scripts/figma-pixel.js <png> [--design W] [--bg RRGGBB] <x> <y> [<x> <y> ...]
+node scripts/figma-pixel.js <png> [--design W] [--bg RRGGBB] --row <y> [--thresh T] [--min N] [--invert]
 ```
 
-Two modes. **Point sampling** prints the composited RGB at coordinates — use it to confirm a fill
-really is the token you referenced. **Row scanning** (`--row`) prints the x-ranges on that row
-where content sits, which locates an icon, a label's centre, or an edge inset as numbers instead
-of an impression.
+Two modes. **Point sampling** prints the RGB at coordinates — use it to confirm a fill really is
+the token you referenced. **Row scanning** (`--row`) prints the x-ranges on that row where content
+sits, which locates an icon, a label's centre, or an edge inset as numbers instead of an impression.
 
 `--design W` interprets your coordinates in design space and scales them to the PNG (falls back to
 `design.frameWidth`). `--invert` is required on dark-mode renders, where content is *brighter*
 than the background rather than darker. `--thresh` tunes the content/background cutoff for
 low-contrast pairs.
 
-Works on any PNG, including screenshots of your own build — which is how you compare the two.
+**Transparency matters here more than it looks.** Figma renders a component with no background
+unless the node paints one, so empty space comes back as `rgba(0,0,0,0)` — transparent, but stored
+as black. Both modes therefore composite over an assumed background (white by default, `--bg` to
+change) before deciding what is content. Without that, a row scan counts every empty pixel as ink
+and reports one run spanning the whole image. On a dark surface, pair `--bg 101014` with `--invert`.
+
+**This is how the comparison actually works.** It runs on any PNG, so you run the *same command* on
+the Figma render and on a screenshot of your build, then compare the two readings:
+
+```bash
+node scripts/figma-pixel.js figma.png --row 68    #  px : 0-20  76-96
+node scripts/figma-pixel.js build.png --row 68    #  px : 0-24  80-104   ← 8px wider
+```
+
+There is no automatic diff between the two — you read two sets of numbers and they either agree or
+they don't. That is deliberate: the mismatch tells you *where* and *by how much*, which a
+pass/fail would not. (For an automated image-vs-image comparison over time, that is
+[`figma-drift.js`](#figma-driftjs--validate-that-the-design-has-not-moved-underneath-you).)
 
 ### `figma-text.js` — translatable copy
 
