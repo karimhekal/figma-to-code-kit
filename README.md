@@ -81,7 +81,8 @@ Every script is identical in every project. Everything that differs — file key
 ## Quick start
 
 ```bash
-# 1. Copy the kit into your project
+# 1. Get the kit and copy it into your project
+git clone https://github.com/karimhekal/figma-to-code-kit.git
 cp -r figma-to-code-kit/scripts       your-project/scripts
 cp -r figma-to-code-kit/skills        your-project/.claude/skills
 cd your-project && npm install pngjs          # the only runtime dependency (Node 18+)
@@ -110,7 +111,7 @@ node scripts/figma-extract.js <a-core-component-node-id>
 
 **Read the ✓bound ratio from step 5.** It tells you whether this design system is ready. If most values come back ⚠LITERAL, they're hardcoded in Figma — every downstream step degrades, and the fix belongs with the design team, not in your code. This is what "a well-defined design system" means in practice.
 
-Full walkthrough: [docs/SETUP.md](docs/SETUP.md) · Every config field and where to get it: [docs/CONFIG.md](docs/CONFIG.md)
+**Docs:** [SETUP.md](docs/SETUP.md) — the full walkthrough, from clone to first component · [COMMANDS.md](docs/COMMANDS.md) — every script and flag · [CONFIG.md](docs/CONFIG.md) — every config field and how to obtain its value
 
 ## What's in the box
 

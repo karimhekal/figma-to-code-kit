@@ -584,7 +584,12 @@ async function checkOnline() {
   console.log(`\n${'─'.repeat(72)}`);
   console.log(`${oks} ok · ${warns} warning(s) · ${errs} error(s)`);
   if (errs) {
-    console.log('\x1b[31mconfig-check FAILED\x1b[0m — fix the ✗ lines above; those paths and exports do not exist.');
+    // Say only what is true: each ✗ already carries its own reason (a missing path, an export
+    // that is not there, an unignored env file). Restating one specific cause here sent people
+    // hunting through paths when the real error was about their token.
+    console.log(
+      `\x1b[31mconfig-check FAILED\x1b[0m — ${errs} error(s). Each ✗ above says what is wrong and how to fix it.`,
+    );
     process.exit(1);
   }
   if (warns) {

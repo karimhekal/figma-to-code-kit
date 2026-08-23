@@ -16,8 +16,14 @@ variables export.
 
 ## 1. Install
 
-Copy two directories into the project. The scripts are byte-identical in every project that uses
-the kit — everything that differs lives in one config file — so copying (or vendoring as a
+Get the kit:
+
+```bash
+git clone https://github.com/karimhekal/figma-to-code-kit.git
+```
+
+Then copy two directories into your project. The scripts are byte-identical in every project that
+uses the kit — everything that differs lives in one config file — so copying (or vendoring as a
 submodule) is the whole install story.
 
 ```bash
@@ -314,7 +320,8 @@ skill can tell the agent to re-run it after a token change.
 ## 7. Validate the config
 
 ```bash
-node scripts/config-check.js
+node scripts/config-check.js            # offline: paths, exports, ramps, commands, credentials
+node scripts/config-check.js --online   # also confirms the token can read files.default
 ```
 
 It checks the config against reality: that configured paths exist, that token modules load and
@@ -322,6 +329,9 @@ export what you claimed, that the commands resolve, that the file keys and crede
 it until it is green, and run it again whenever the repo moves a directory — a config that has
 quietly rotted is worse than no config, because the extractor's suggestions silently stop
 appearing and nobody notices they were ever there.
+
+`--online` adds a single cheap API call and prints the file's `lastModified`, which is also the
+first move in the stale-id protocol whenever a node id stops resolving.
 
 Every failure it reports is a feature switching off, not a crash: the scripts degrade gracefully
 by design. `[warn] could not index …` means you lose token suggestions, not that extraction stops.
@@ -412,3 +422,13 @@ is Enterprise-only. On every other plan it answers 403. That is why the export i
 why token suggestions are matched by *value* instead of by name. It is a plan limit, not a missing
 feature — and it is a good reason to also point the official Figma MCP server at the same file when
 you specifically need a variable's name.
+
+---
+
+## Where to go next
+
+- [COMMANDS.md](COMMANDS.md) — every script, its flags, and what it prints
+- [CONFIG.md](CONFIG.md) — every config field and how to obtain its value
+- [`skills/figma-to-code/SKILL.md`](../skills/figma-to-code/SKILL.md) — the workflow your agent follows
+  once setup is done; [`core.md`](../skills/figma-to-code/core.md) is the universal Figma knowledge
+  behind it
