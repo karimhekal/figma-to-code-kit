@@ -108,7 +108,7 @@ Three ways the "color" of a shape is not what the first line of the extract says
 
 Some Figma files are **republished wholesale** rather than edited in place — typically the
 product/screens file, where each delivery re-imports every section. When that happens
-**every node id in the file renumbers**. `files.volatile` in `figma.config.json` names which
+**every node id in the file renumbers**. `files.volatile` in `figma-kit.config.json` names which
 of this project's files are that kind. Assume the generation has moved since anything was
 written down.
 

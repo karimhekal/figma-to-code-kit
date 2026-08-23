@@ -84,14 +84,14 @@ def _read_config(path):
 
 
 def load_config():
-    """Return (config, project_root): $FIGMA_CONFIG, else figma.config.json walking up from cwd."""
+    """Return (config, project_root): $FIGMA_CONFIG, else figma-kit.config.json walking up from cwd."""
     explicit = os.environ.get("FIGMA_CONFIG")
     if explicit:
         path = os.path.abspath(explicit)
         return _read_config(path), os.path.dirname(path)
     directory = os.getcwd()
     while True:
-        candidate = os.path.join(directory, "figma.config.json")
+        candidate = os.path.join(directory, "figma-kit.config.json")
         if os.path.isfile(candidate):
             return _read_config(candidate), directory
         parent = os.path.dirname(directory)
@@ -241,7 +241,7 @@ def main():
 
     if not out_dir:
         sys.exit(
-            "No output directory. Pass --out, or set paths.fontsOut in figma.config.json, e.g.\n"
+            "No output directory. Pass --out, or set paths.fontsOut in figma-kit.config.json, e.g.\n"
             '  "paths": { "fontSources": "font-sources", "fontsOut": "src/assets/fonts" }'
         )
     if not src_dir or not os.path.isdir(src_dir):

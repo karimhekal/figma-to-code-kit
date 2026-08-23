@@ -38,7 +38,7 @@ If you would rather not vendor the scripts, clone the kit *alongside* the projec
 your config instead:
 
 ```bash
-FIGMA_CONFIG=/abs/path/to/your-project/figma.config.json \
+FIGMA_CONFIG=/abs/path/to/your-project/figma-kit.config.json \
   node /abs/path/to/figma-to-code-kit/scripts/figma-extract.js 1234:5678
 ```
 
@@ -115,10 +115,10 @@ stale one written in a ticket.
 
 ---
 
-## 4. Write `figma.config.json`
+## 4. Write `figma-kit.config.json`
 
 ```bash
-cp figma-to-code-kit/figma.config.example.json figma.config.json
+cp figma-to-code-kit/figma-kit.config.example.json figma-kit.config.json
 ```
 
 The example is annotated with `//`-prefixed sibling keys; the loader strips `//` comment lines, so
@@ -132,8 +132,8 @@ spacing, what are the mode names). Both halves are things an agent can go and *l
 more accurately than you can remember them. Point one at the repo with this prompt:
 
 ```
-Fill in a draft `figma.config.json` for this repo using the schema in
-`figma.config.example.json`. Work in two passes and do not guess — every value must
+Fill in a draft `figma-kit.config.json` for this repo using the schema in
+`figma-kit.config.example.json`. Work in two passes and do not guess — every value must
 come from something you actually read.
 
 PASS 1 — scan the repository:
@@ -165,7 +165,7 @@ several variants — and run:
   (c) What proportion of styled values come back bound to a variable versus flagged as
       an unbound literal? Give the counts per component and the overall ratio.
 
-OUTPUT: the draft `figma.config.json`, plus a short report of what you could not
+OUTPUT: the draft `figma-kit.config.json`, plus a short report of what you could not
 determine. LEAVE THESE FIELDS EMPTY for a human — do not invent them:
 `files.volatile`, `tokens.typography.forbiddenProps`, `icons.rtlMirrored`,
 `drift.nodes`, `gotchas`.

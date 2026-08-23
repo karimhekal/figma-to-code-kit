@@ -3,13 +3,19 @@
  * figma-config — THE single source of per-project settings for every figma-* script.
  *
  * Everything that differs between projects (file keys, token paths, component names, output
- * locations) lives in `figma.config.json` at the project root. The scripts themselves are
+ * locations) lives in `figma-kit.config.json` at the project root. The scripts themselves are
  * identical in every project and must never hard-code a project value.
+ *
+ * WHY NOT `figma-kit.config.json`: that name belongs to Figma's own Code Connect CLI, and a project
+ * that uses Code Connect — which this kit's workflow actively encourages — already has one. Two
+ * tools writing one file is a corruption waiting to happen, so the kit stays out of its way. If a
+ * `figma-kit.config.json` is found that looks like Code Connect's, it is ignored rather than misread.
  *
  * Resolution order for the config file:
  *   1. $FIGMA_CONFIG (explicit path)
- *   2. figma.config.json, walking up from cwd to the filesystem root
- *   3. built-in DEFAULTS (so a fresh repo still runs; `files.default` is then required per-call)
+ *   2. figma-kit.config.json, walking up from cwd to the filesystem root
+ *   3. a legacy figma-kit.config.json that is NOT Code Connect's (warns; rename it)
+ *   4. built-in DEFAULTS (so a fresh repo still runs; `files.default` is then required per-call)
  *
  * A missing config is NOT an error — every field has a default and scripts degrade gracefully
  * (e.g. figma-extract runs as a plain extractor when no token index is configured). Run
@@ -158,39 +164,90 @@ function findUp(name, start) {
   }
 }
 
+const CONFIG_NAME = 'figma-kit.config.json';
+const LEGACY_NAME = 'figma-kit.config.json';
+
+/** Parse a config file, tolerating the `//`-commented template people annotate. */
+function readConfigFile(file) {
+  const raw = fs.readFileSync(file, 'utf8');
+  return JSON.parse(raw.replace(/^\s*\/\/.*$/gm, ''));
+}
+
+/**
+ * Is this `figma-kit.config.json` Figma Code Connect's, rather than ours? Code Connect's has a
+ * `codeConnect` key and none of our top-level sections. Reading it as ours would silently produce
+ * a config with no file key and no paths — and the scripts would blame the user for it.
+ */
+function looksLikeCodeConnect(json) {
+  if (!isPlainObject(json)) return false;
+  const ours = ['files', 'auth', 'paths', 'tokens', 'variables', 'components', 'design'];
+  return 'codeConnect' in json && !ours.some((k) => k in json);
+}
+
 let cached = null;
 
 /**
  * Load the merged config. `config.__root` is the project root (the directory holding
- * figma.config.json, or cwd when there is none) — resolve every configured path against it.
+ * figma-kit.config.json, or cwd when there is none) — resolve every configured path against it.
  */
 function loadConfig() {
   if (cached) return cached;
 
   let file = process.env.FIGMA_CONFIG || null;
-  let root;
+  let root = null;
+  let user = {};
+
   if (file) {
     file = path.resolve(file);
     root = path.dirname(file);
   } else {
-    const dir = findUp('figma.config.json', process.cwd());
+    const dir = findUp(CONFIG_NAME, process.cwd());
     if (dir) {
       root = dir;
-      file = path.join(dir, 'figma.config.json');
+      file = path.join(dir, CONFIG_NAME);
     } else {
-      root = process.cwd();
-      file = null;
+      // No config of ours. Before giving up, look for a legacy figma-kit.config.json — but only adopt
+      // it if it is actually ours. Code Connect owns that filename too, and reading its file would
+      // hand every script an empty config and make the user hunt for a mistake they did not make.
+      const legacyDir = findUp(LEGACY_NAME, process.cwd());
+      if (legacyDir) {
+        const legacyFile = path.join(legacyDir, LEGACY_NAME);
+        let parsed = null;
+        try {
+          parsed = readConfigFile(legacyFile);
+        } catch {
+          parsed = null; // unparseable: not something to guess about, fall through to defaults
+        }
+        if (parsed && !looksLikeCodeConnect(parsed)) {
+          console.warn(
+            `[figma-config] Using ${LEGACY_NAME} — rename it to ${CONFIG_NAME}. ` +
+              `Figma Code Connect uses ${LEGACY_NAME} for its own settings, so sharing the name ` +
+              `means two tools writing one file.`,
+          );
+          root = legacyDir;
+          file = legacyFile;
+          user = parsed;
+        }
+      }
+      if (!root) {
+        root = process.cwd();
+        file = null;
+      }
     }
   }
 
-  let user = {};
-  if (file) {
+  if (file && !Object.keys(user).length) {
     try {
-      const raw = fs.readFileSync(file, 'utf8');
-      // Tolerate a `//`-commented template — people annotate these files.
-      user = JSON.parse(raw.replace(/^\s*\/\/.*$/gm, ''));
+      user = readConfigFile(file);
     } catch (e) {
       console.error(`[figma-config] Could not parse ${file}: ${e.message}`);
+      process.exit(1);
+    }
+    if (looksLikeCodeConnect(user)) {
+      console.error(
+        `[figma-config] ${file} is Figma Code Connect's config, not this kit's. ` +
+          `Put the kit's settings in ${CONFIG_NAME} instead.`,
+      );
       process.exit(1);
     }
   }
@@ -215,7 +272,7 @@ function requireFileKey(cfg, explicit, slot = 'default') {
   const key = explicit || cfg.files[slot] || cfg.files.default;
   if (key) return key;
   console.error(
-    `Missing Figma file key. Pass --file <key>, or set files.${slot} in figma.config.json` +
+    `Missing Figma file key. Pass --file <key>, or set files.${slot} in figma-kit.config.json` +
       (cfg.__file ? ` (${path.relative(process.cwd(), cfg.__file)})` : ' (no config file found)'),
   );
   process.exit(1);
@@ -244,6 +301,8 @@ function loadTokenModule(absPath) {
 
 module.exports = {
   DEFAULTS,
+  CONFIG_NAME,
+  LEGACY_NAME,
   loadConfig,
   resolvePath,
   requireFileKey,

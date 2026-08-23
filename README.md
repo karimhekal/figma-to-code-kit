@@ -70,7 +70,7 @@ Worth noting: the most-adopted third-party Figma MCP server ([Framelink](https:/
         └─ build-tokens  ──► your variables export → typed token modules + variable map
                     │
                     ▼
-          figma.config.json  ◄── the ONLY project-specific file
+          figma-kit.config.json  ◄── the ONLY project-specific file
                     │
                     ▼
         skills/figma-to-code  ──► your AI agent builds against the spec,
@@ -93,12 +93,12 @@ echo 'FIGMA_ACCESS_TOKEN=figd_...' >> .env.local
 grep -q '.env.local' .gitignore || echo '.env.local' >> .gitignore
 
 # 3. Create your config
-cp figma-to-code-kit/figma.config.example.json figma.config.json
+cp figma-to-code-kit/figma-kit.config.example.json figma-kit.config.json
 ```
 
 Then fill the config. **Don't do it by hand** — point your agent at the repo:
 
-> Fill `figma.config.json`. Scan this repo for: the theme accessor hook, generated token modules (paths + export names), the component barrel + naming prefix, the showcase screen, and the validate command. Then extract 3–4 core components from Figma file `<KEY>` and report: (a) is spacing bound to variables in this design system, (b) what are the variable mode names in the export filenames, (c) what percentage of styled values come back ✓bound vs ⚠LITERAL.
+> Fill `figma-kit.config.json`. Scan this repo for: the theme accessor hook, generated token modules (paths + export names), the component barrel + naming prefix, the showcase screen, and the validate command. Then extract 3–4 core components from Figma file `<KEY>` and report: (a) is spacing bound to variables in this design system, (b) what are the variable mode names in the export filenames, (c) what percentage of styled values come back ✓bound vs ⚠LITERAL.
 
 Review its draft and fill in the judgement calls it can't make: which files are `volatile`, `typography.forbiddenProps`, `icons.rtlMirrored`.
 
@@ -156,7 +156,7 @@ npm test        # Node's built-in test runner — no framework, ~6s
 
 The suite runs the real CLIs as child processes against throwaway projects under your temp
 directory, with the Figma API stubbed out — so it never touches the network, your
-`figma.config.json`, or your token. If you change a script's **output**, expect a test to fail:
+`figma-kit.config.json`, or your token. If you change a script's **output**, expect a test to fail:
 the printout is the contract, and a `✓bound` flag that quietly stops appearing is a regression with
 no other symptom.
 

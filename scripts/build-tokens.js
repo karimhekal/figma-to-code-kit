@@ -59,7 +59,7 @@
  * you tell a stale map from a current one. Exports that omit the variable ids simply produce no
  * map, and the extractor falls back to value matching with a warning.
  *
- * CONFIGURATION (figma.config.json → `variables`)
+ * CONFIGURATION (figma-kit.config.json → `variables`)
  *   sources: [{ match: "<regex source>", role: "primitives" | "mode:<name>" }]
  *            `match` is tested case-insensitively against the *basename* of each file found under
  *            `paths.variablesExport` (searched recursively — Figma exports into subfolders).
@@ -115,7 +115,7 @@ function listFiles(dir) {
 
 if (!OUT_DIR) {
   fail(
-    'paths.tokensDir is not set. Add it to figma.config.json, e.g.\n' +
+    'paths.tokensDir is not set. Add it to figma-kit.config.json, e.g.\n' +
       '  "paths": { "tokensDir": "src/theme/tokens" }',
   );
 }
@@ -676,7 +676,7 @@ if (unrouted.length) {
   console.warn(`\n[build-tokens] ${unrouted.length} group(s) in the export have no destination:`);
   for (const g of unrouted.slice(0, 20)) console.warn(`    - ${g}`);
   if (unrouted.length > 20) console.warn(`    …and ${unrouted.length - 20} more`);
-  console.warn('  Add each to variables.groups (or variables.ignoreKeys) in figma.config.json.');
+  console.warn('  Add each to variables.groups (or variables.ignoreKeys) in figma-kit.config.json.');
 }
 if (modeless.length) {
   console.warn('\n[build-tokens] per-mode groups found in a source with no mode — skipped:');

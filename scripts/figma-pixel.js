@@ -11,7 +11,7 @@
  *   node scripts/figma-pixel.js <png> 784 1300 1340 1552
  *
  *   # ...or in DESIGN space (the artboard width); coords are scaled up to the PNG.
- *   # --design defaults to design.frameWidth from figma.config.json:
+ *   # --design defaults to design.frameWidth from figma-kit.config.json:
  *   node scripts/figma-pixel.js <png> --design 393 196 330
  *
  *   # find content runs on a row (locate an icon, a label, a divider, an edge): prints the

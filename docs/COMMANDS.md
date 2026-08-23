@@ -1,7 +1,7 @@
 # Command reference
 
 Every script in the kit, its flags, and what it prints. All of them read
-[`figma.config.json`](CONFIG.md) for defaults — a flag always overrides the config.
+[`figma-kit.config.json`](CONFIG.md) for defaults — a flag always overrides the config.
 
 Run them with `node scripts/<name>.js`. Node 18+; no build step.
 

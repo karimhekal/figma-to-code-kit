@@ -181,7 +181,7 @@ test('a node id copied from a Figma URL (1234-5678) is accepted', () => {
 
 test('with nothing configured it still extracts, and names each feature it switched off', () => {
   // An EMPTY config rather than no config at all: `findUp` walks to the filesystem root, so a
-  // stray figma.config.json above the temp directory would otherwise join the test. Pointing
+  // stray figma-kit.config.json above the temp directory would otherwise join the test. Pointing
   // $FIGMA_CONFIG at `{}` gives the same built-in DEFAULTS with none of that ambient risk.
   const p = createProject({ config: {} });
   const res = p.run('figma-extract.js', [NODE, '--file', 'EXAMPLEFILEKEY123456'], {

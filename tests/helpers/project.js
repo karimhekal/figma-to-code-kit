@@ -13,7 +13,7 @@
  *
  * WHY $FIGMA_CONFIG IS ALWAYS SET
  * -------------------------------
- * `figma-config.findUp()` walks from cwd to the FILESYSTEM ROOT looking for `figma.config.json`.
+ * `figma-config.findUp()` walks from cwd to the FILESYSTEM ROOT looking for `figma-kit.config.json`.
  * A temp project lives under `os.tmpdir()`, and a stray config anywhere above that — someone's
  * experiment in `/tmp`, a config at `$HOME` on a machine where tmpdir is inside it — would silently
  * join the test and change its answers. Naming the config explicitly closes that door. The one test
@@ -69,7 +69,7 @@ function stripAnsi(s) {
  *
  * @param {object} [opts]
  * @param {boolean} [opts.copyFixture=true]  copy `tests/fixtures/project` in (false = bare dir)
- * @param {object|null} [opts.config]        replace figma.config.json wholesale
+ * @param {object|null} [opts.config]        replace figma-kit.config.json wholesale
  * @param {boolean} [opts.envFile=true]      write `.env.local` holding the fake token
  * @param {boolean} [opts.gitignore=true]    write a `.gitignore` that ignores `.env.local`
  * @param {object}  [opts.stub={}]           seed the fetch-stub manifest (`file`/`nodes`/`images`)
@@ -87,7 +87,7 @@ function createProject(opts = {}) {
   if (copyFixture) copyDir(FIXTURE_PROJECT, dir);
   else fs.mkdirSync(dir, { recursive: true });
 
-  if (config) fs.writeFileSync(path.join(dir, 'figma.config.json'), JSON.stringify(config, null, 2));
+  if (config) fs.writeFileSync(path.join(dir, 'figma-kit.config.json'), JSON.stringify(config, null, 2));
   // The env file is written here, never committed: the kit's own .gitignore ignores `.env.*`, so a
   // committed fixture env file would not survive a clone and every token test would evaporate.
   if (envFile) fs.writeFileSync(path.join(dir, '.env.local'), `FIGMA_ACCESS_TOKEN=${FAKE_TOKEN}\n`);
@@ -130,9 +130,9 @@ function createProject(opts = {}) {
       fs.writeFileSync(stubPath, JSON.stringify({ ...current, ...patch }, null, 2));
     },
 
-    /** Edit figma.config.json in place. `mutate` receives the parsed object. */
+    /** Edit figma-kit.config.json in place. `mutate` receives the parsed object. */
     patchConfig: (mutate) => {
-      const p = path.join(dir, 'figma.config.json');
+      const p = path.join(dir, 'figma-kit.config.json');
       const json = JSON.parse(fs.readFileSync(p, 'utf8'));
       mutate(json);
       fs.writeFileSync(p, JSON.stringify(json, null, 2));
@@ -151,7 +151,7 @@ function createProject(opts = {}) {
       const env = {
         PATH: process.env.PATH || '',
         // Explicit, so `findUp` can never wander out of the temp project. See the header.
-        FIGMA_CONFIG: runOpts.figmaConfig || path.join(dir, 'figma.config.json'),
+        FIGMA_CONFIG: runOpts.figmaConfig || path.join(dir, 'figma-kit.config.json'),
         // Quoted: NODE_OPTIONS is split on whitespace unless the value is quoted, and a checkout
         // path containing a space would otherwise silently disable the stub — and silently start
         // making real network calls.

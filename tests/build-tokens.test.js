@@ -152,7 +152,7 @@ test('exportHash is stable across runs, and matches what figma-drift recomputes'
   // The recipe lives in two places by design (figma-drift must not depend on the token build to
   // decide whether the token build is stale). Two copies of a hash is exactly how two "identical"
   // hashes start disagreeing — so pin them to each other.
-  const cfgJson = p.readJson('figma.config.json');
+  const cfgJson = p.readJson('figma-kit.config.json');
   const cfg = { __root: p.dir, paths: cfgJson.paths, variables: cfgJson.variables };
   const src = resolveExportSources(cfg);
   assert.ok(src.files, src.reason);

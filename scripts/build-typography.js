@@ -72,7 +72,7 @@ function fail(msg) {
 
 if (!OUT) {
   fail(
-    'paths.tokensDir is not set. Add it to figma.config.json, e.g.\n' +
+    'paths.tokensDir is not set. Add it to figma-kit.config.json, e.g.\n' +
       '  "paths": { "tokensDir": "src/theme/tokens" }',
   );
 }
@@ -205,7 +205,7 @@ async function fetchPrefix(fileKey, prefix, headers, allStyles) {
     fail(
       `No TEXT style in the file starts with "${prefix}".\n` +
         `  Style-name prefixes present: ${sample.slice(0, 10).join(', ') || '(none — the file has no published text styles)'}\n` +
-        '  Fix typographySource.prefixes in figma.config.json.',
+        '  Fix typographySource.prefixes in figma-kit.config.json.',
     );
   }
 

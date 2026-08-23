@@ -1,6 +1,6 @@
 /* eslint-disable */
 /**
- * config-check — validate `figma.config.json` against the repository it claims to describe.
+ * config-check — validate `figma-kit.config.json` against the repository it claims to describe.
  *
  * Every other script in this kit degrades gracefully on purpose: an unset optional field turns a
  * feature off with a one-line `[warn]` and the run continues. That is the right behaviour at 2am
@@ -142,9 +142,9 @@ if (cfg.__file) {
   // Not fatal by itself — the scripts run on defaults — but nothing below can be configured, so
   // expect this to cascade into a files.default error.
   warn(
-    `no figma.config.json found (searched upward from ${process.cwd()}) — running on built-in defaults.`,
+    `no figma-kit.config.json found (searched upward from ${process.cwd()}) — running on built-in defaults.`,
   );
-  note('Copy figma.config.example.json to figma.config.json at your project root.');
+  note('Copy figma-kit.config.example.json to figma-kit.config.json at your project root.');
 }
 note(`project root: ${cfg.__root}`);
 

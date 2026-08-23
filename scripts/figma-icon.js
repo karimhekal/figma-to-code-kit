@@ -34,7 +34,7 @@
  *   - A MULTI-COLOR icon cannot collapse to a single `currentColor`. Export it with
  *     `node scripts/figma-asset.js` instead, which keeps the original paints.
  *   - Paints written as `rgb()`, inline `style="fill:…"`, or another CSS keyword are left alone.
- *     Add the keyword to `icons.extraNamedColors` in figma.config.json to catch it.
+ *     Add the keyword to `icons.extraNamedColors` in figma-kit.config.json to catch it.
  *
  * Config used: `files.default` (or `--file`), `paths.iconRegistry` (or `--out`),
  * `icons.extraNamedColors`, `auth.*`. Node 18+ (global fetch), zero dependencies.
@@ -132,7 +132,7 @@ function readRegistry(regPath) {
     : resolvePath(cfg, cfg.paths && cfg.paths.iconRegistry);
   if (!regPath) {
     console.error(
-      'No icon registry path. Set paths.iconRegistry in figma.config.json, or pass --out <registry.json>.',
+      'No icon registry path. Set paths.iconRegistry in figma-kit.config.json, or pass --out <registry.json>.',
     );
     process.exit(1);
   }

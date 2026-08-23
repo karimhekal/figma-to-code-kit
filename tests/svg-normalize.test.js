@@ -10,7 +10,7 @@
  *   - an inner `<rect width="16">` stripped along with the root's size, deforming the drawing
  *
  * The config is always passed EXPLICITLY. `recolorToCurrentColor(svg)` defaults to `loadConfig()`,
- * which walks up from cwd looking for a figma.config.json — so a test that relied on the default
+ * which walks up from cwd looking for a figma-kit.config.json — so a test that relied on the default
  * would read whatever config happens to sit above the checkout and stop being hermetic.
  */
 const test = require('node:test');

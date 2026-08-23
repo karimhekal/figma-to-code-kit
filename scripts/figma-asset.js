@@ -104,7 +104,7 @@ function parseArgs(argv) {
     : resolvePath(cfg, cfg.paths && cfg.paths.graphicsDir);
   if (!dir) {
     console.error(
-      'No graphics output directory. Set paths.graphicsDir in figma.config.json, or pass --out <dir>.',
+      'No graphics output directory. Set paths.graphicsDir in figma-kit.config.json, or pass --out <dir>.',
     );
     process.exit(1);
   }

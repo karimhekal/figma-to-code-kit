@@ -58,10 +58,10 @@ test('findUp: locates the config from a nested subdirectory', () => {
   const root = path.join(TMP, 'walk');
   const deep = path.join(root, 'src', 'components', 'ui');
   fs.mkdirSync(deep, { recursive: true });
-  fs.writeFileSync(path.join(root, 'figma.config.json'), '{}');
+  fs.writeFileSync(path.join(root, 'figma-kit.config.json'), '{}');
 
-  assert.equal(findUp('figma.config.json', deep), root);
-  assert.equal(findUp('figma.config.json', root), root);
+  assert.equal(findUp('figma-kit.config.json', deep), root);
+  assert.equal(findUp('figma-kit.config.json', root), root);
 });
 
 test('findUp: returns null rather than looping at the filesystem root', () => {
@@ -72,7 +72,7 @@ test('findUp: returns null rather than looping at the filesystem root', () => {
 test('loadConfig: $FIGMA_CONFIG wins over the cwd walk, and roots paths at the config', () => {
   const home = path.join(TMP, 'explicit');
   fs.mkdirSync(home, { recursive: true });
-  const configPath = path.join(home, 'figma.config.json');
+  const configPath = path.join(home, 'figma-kit.config.json');
   fs.writeFileSync(
     configPath,
     JSON.stringify({ paths: { tokensDir: 'src/theme/tokens' }, files: { default: 'ABC' } }),
@@ -124,7 +124,7 @@ test('requireFileKey: with nothing configured it exits 1 and says how to fix it'
   assert.equal(res.status, 1);
   assert.match(res.out, /Missing Figma file key/);
   assert.match(res.out, /--file <key>/);
-  assert.match(res.out, /files\.default in figma\.config\.json/);
+  assert.match(res.out, /files\.default in figma-kit\.config\.json/);
 });
 
 test('loadTokenModule: evaluates a generated module after stripping TS-only syntax', () => {
@@ -160,4 +160,35 @@ test('resolvePath: null in, null out — and absolute paths pass straight throug
   assert.equal(resolvePath(cfg, ''), null);
   assert.equal(resolvePath(cfg, 'src/theme'), path.join('/project', 'src/theme'));
   assert.equal(resolvePath(cfg, '/tmp/elsewhere'), '/tmp/elsewhere');
+});
+
+// ─── the Code Connect filename collision ──────────────────────────────────────
+// `figma.config.json` is Figma Code Connect's own config file. This kit used the same name, so
+// adopting it in a repo that already ran Code Connect meant two tools writing one file — and the
+// kit read Code Connect's settings as its own, yielding a config with no file key and no paths,
+// then blaming the user for it. The kit now owns `figma-kit.config.json` and stays out of the way.
+
+test("Code Connect's figma.config.json is refused, not misread as ours", () => {
+  const p = createProject();
+  p.writeJson('figma.config.json', {
+    codeConnect: { parser: 'react', include: ['src/**/*.tsx'] },
+  });
+
+  const res = p.run('config-check.js', [], {
+    figmaConfig: path.join(p.dir, 'figma.config.json'),
+  });
+  assert.notEqual(res.status, 0, res.out);
+  assert.match(res.out, /Code Connect/i);
+  assert.match(res.out, /figma-kit\.config\.json/);
+});
+
+test('a legacy figma.config.json that IS ours still loads', () => {
+  const p = createProject();
+  p.writeJson('figma.config.json', { files: { default: 'LEGACYFILEKEY1234567' } });
+
+  const res = p.run('config-check.js', [], {
+    figmaConfig: path.join(p.dir, 'figma.config.json'),
+  });
+  // It was genuinely read — the key it names came from that file, not from the fixture's config.
+  assert.match(res.out, /LEGACYFILEKEY1234567/, res.out);
 });

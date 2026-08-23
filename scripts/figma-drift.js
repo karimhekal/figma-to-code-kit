@@ -306,7 +306,7 @@ function main() {
     if (!token) {
       warn(
         'no Figma access token — the lastModified tripwire is off. ' +
-          'Set it (see auth.* in figma.config.json) to switch it on.',
+          'Set it (see auth.* in figma-kit.config.json) to switch it on.',
       );
       return;
     }
@@ -642,7 +642,7 @@ function main() {
     section('Layer 2 · visual baselines');
     if (!configured.length) {
       warn('drift.nodes is empty — layer 2 is off, so a spacing or icon change cannot be seen.');
-      console.log('      → name a few canonical components in figma.config.json, then run --update:');
+      console.log('      → name a few canonical components in figma-kit.config.json, then run --update:');
       console.log('        "drift": { "nodes": [{ "id": "1234:5678", "name": "button" }] }');
       return;
     }

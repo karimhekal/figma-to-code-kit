@@ -21,11 +21,11 @@ companions:
 ## Step −1: read the config. It is the project's source of truth for every concrete name.
 
 Nothing project-specific is written in this skill on purpose — prose goes stale silently and
-cannot be validated. `figma.config.json` at the project root holds every concrete value, and
+cannot be validated. `figma-kit.config.json` at the project root holds every concrete value, and
 `node scripts/config-check.js` validates it against the repo.
 
 ```bash
-cat figma.config.json
+cat figma-kit.config.json
 # or, fully merged with defaults:
 node -e "console.log(JSON.stringify(require('./scripts/figma-config').loadConfig(), null, 2))"
 ```
@@ -154,4 +154,4 @@ in `design.modes`**, and at every width in `design.compareWidths`.
 Run `node scripts/config-check.js`, read what it reports, and **fix the config**. Never
 hard-code around it — a value written into a component or into this skill is a value no
 script can validate and no future project can reuse. If a field the task needs genuinely
-does not exist yet, add it to `figma.config.json` and say that you did.
+does not exist yet, add it to `figma-kit.config.json` and say that you did.

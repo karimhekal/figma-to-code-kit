@@ -59,7 +59,7 @@
  * that geometry is owned by the component instance, not authored in the layout you are porting.
  *
  * Every project-specific value (file keys, token module paths, the text component's name) comes
- * from `figma.config.json`. With no config the script still runs as a plain extractor — the
+ * from `figma-kit.config.json`. With no config the script still runs as a plain extractor — the
  * suggestion features simply switch off with a one-line warning.
  */
 const fs = require('fs');

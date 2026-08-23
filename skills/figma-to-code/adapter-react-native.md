@@ -4,7 +4,7 @@ How the extracted spec becomes React Native code. Read [`core.md`](core.md) firs
 the Figma truths this file assumes. [`SKILL.md`](SKILL.md) is the ordered workflow; this file
 is step 3 (BUILD) plus the RN-specific parts of step 4 (RENDER & COMPARE).
 
-Every concrete name below comes from `figma.config.json`: the spacing ramp reference from
+Every concrete name below comes from `figma-kit.config.json`: the spacing ramp reference from
 `tokens.spacing.refTemplate`, the text component from `tokens.typography.component`, the
 theme accessor from `components.themeAccessor`, the barrel from `components.index`.
 

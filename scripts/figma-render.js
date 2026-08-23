@@ -12,7 +12,7 @@
  *
  * Saves <out>/figma-<nodeId>.<format> and prints the paths so they can be opened and diffed
  * against a screenshot of the running build. `--out` defaults to paths.renderDir from
- * figma.config.json; the file key defaults to files.default (`--screens` picks files.screens,
+ * figma-kit.config.json; the file key defaults to files.default (`--screens` picks files.screens,
  * `--file` overrides both). Credentials come from figma-net (auth.* in the config).
  *
  * Node ids copied out of a Figma URL use `-` as the separator; both forms are accepted.

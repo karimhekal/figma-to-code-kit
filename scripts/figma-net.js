@@ -22,7 +22,7 @@ function escapeRe(s) {
  * Returns null when unset, so the caller owns the error message.
  *
  * Both the variable name (`auth.envVar`) and the file (`auth.envFile`, resolved against the
- * project root) come from figma.config.json — the env var always wins, the file is the fallback.
+ * project root) come from figma-kit.config.json — the env var always wins, the file is the fallback.
  *
  * THE ONE loader — every figma-* script must call this rather than re-deriving it. Scripts that
  * carried their own copy had drifted: the strict `^TOKEN=(.+)$` variants kept the surrounding
@@ -52,7 +52,7 @@ function requireFigmaToken(cfg = loadConfig()) {
   const envFile = (cfg && cfg.auth && cfg.auth.envFile) || null;
   console.error(
     `Missing ${envVar}. Export it, or put "${envVar}=<your token>" in` +
-      (envFile ? ` ${envFile}` : ' your env file (auth.envFile in figma.config.json)') +
+      (envFile ? ` ${envFile}` : ' your env file (auth.envFile in figma-kit.config.json)') +
       '.\nCreate a personal access token at Figma → Settings → Security → Personal access tokens.' +
       (envFile ? `\nKeep ${envFile} out of version control.` : ''),
   );

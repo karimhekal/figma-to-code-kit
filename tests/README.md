@@ -9,7 +9,7 @@ Node's built-in runner (`node:test` + `node:assert/strict`). **No test framework
 dependencies**, matching the kit itself.
 
 The tests are **hermetic**: every one builds a throwaway project under `os.tmpdir()`, points the
-scripts at it, and never touches the network, your `figma.config.json`, or your Figma token. They
+scripts at it, and never touches the network, your `figma-kit.config.json`, or your Figma token. They
 take about six seconds.
 
 > **Why `node --test` and not `node --test tests/`?** Node ≥ 22 stopped treating a directory
@@ -58,7 +58,7 @@ assert.equal(res.status, 0, res.out);
 Two deliberate choices in there are worth knowing before you add a test:
 
 - **`$FIGMA_CONFIG` is always set explicitly.** `figma-config.findUp()` walks from the cwd to the
-  *filesystem root* looking for `figma.config.json`. A stray config anywhere above `os.tmpdir()`
+  *filesystem root* looking for `figma-kit.config.json`. A stray config anywhere above `os.tmpdir()`
   would silently join your test and change its answers. The one test that wants built-in DEFAULTS
   therefore points `$FIGMA_CONFIG` at an **empty** config (`{}`) rather than unsetting it — same
   merged result, none of the ambient risk.

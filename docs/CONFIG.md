@@ -1,9 +1,9 @@
-# `figma.config.json` reference
+# `figma-kit.config.json` reference
 
 One file holds everything that differs between projects. The scripts are identical everywhere;
 onboarding a project is filling this in, not editing code.
 
-Fields are documented in the order they appear in `figma.config.example.json`. Each one is tagged
+Fields are documented in the order they appear in `figma-kit.config.example.json`. Each one is tagged
 with **how you get the value**, because that is the part nobody writes down:
 
 | Tag | Meaning |
@@ -22,7 +22,7 @@ Resolution order, first match wins:
 
 1. `$FIGMA_CONFIG` — an explicit path. Useful when the scripts live outside the project; the
    config's directory becomes the project root, so relative paths still resolve correctly.
-2. `figma.config.json`, searched upward from the current directory to the filesystem root.
+2. `figma-kit.config.json`, searched upward from the current directory to the filesystem root.
 3. Built-in defaults, so a fresh repo still runs.
 
 Mechanics worth knowing:
@@ -35,7 +35,7 @@ Mechanics worth knowing:
   drops the defaults rather than adding to them.
 - Lines beginning with `//` are stripped before parsing, so the annotated example file is valid
   input. (Sibling `"// field"` string keys are also harmless — they parse as ordinary unused keys.)
-- Every path is resolved against the project root — the directory holding `figma.config.json`.
+- Every path is resolved against the project root — the directory holding `figma-kit.config.json`.
   Absolute paths are passed through untouched.
 
 ---
