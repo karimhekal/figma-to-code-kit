@@ -24,9 +24,23 @@
  * which the ordinary `/v1/files/:key/nodes` response carries for every node on every plan. It
  * never calls the Variables API (`/v1/files/:key/variables/local`), which is Organization/
  * Enterprise-only. So the single most valuable signal in this kit — "is this value a token or a
- * literal?" — works on a free or Professional Figma seat. It cannot resolve the variable's NAME
- * without that API, which is exactly why the token index below suggests the code reference by
- * VALUE instead.
+ * literal?" — works on a free or Professional Figma seat.
+ *
+ * NEITHER DOES NAMING THE VARIABLE. `boundVariables[prop]` does not just say "bound", it carries
+ * the variable's ID (`{ type: 'VARIABLE_ALIAS', id: 'VariableID:1:23' }`) — and every leaf in the
+ * variables export carries the SAME id under `$extensions["com.figma.variableId"]`. Verified live:
+ * the Variables API 403s on lower plans, but those two do not. `build-tokens.js` joins them into
+ * `<paths.tokensDir>/variable-map.generated.json` (id → the code reference the token became), and
+ * this script reads it: a bound property then resolves to EXACTLY ONE token, printed `✓exact`.
+ *
+ * Without that map (no token build yet, or an export whose plugin dropped the ids) the script falls
+ * back to what it always did — matching the RESOLVED VALUE against the project's generated token
+ * modules and offering a shortlist. That fallback is a guess: `#FFFFFF` legitimately matches three
+ * tokens and a human has to pick. Prefer the map; the fallback exists so nothing ever crashes.
+ *
+ * A bound id the map does not contain is not an error either — it means the design gained a
+ * variable your export predates. Those are called out inline and tallied at the end, because they
+ * say something no other signal does: the token pipeline is behind the design file.
  *
  * COMPONENT PROPERTIES ARE A CONTRACT. When the node is a component set, its
  * `componentPropertyDefinitions` are printed first as a state matrix: every VARIANT axis with all
@@ -48,10 +62,15 @@
  * from `figma.config.json`. With no config the script still runs as a plain extractor — the
  * suggestion features simply switch off with a one-line warning.
  */
+const fs = require('fs');
+const path = require('path');
 const { fetchRetry, requireFigmaToken } = require('./figma-net');
 const { loadConfig, resolvePath, requireFileKey, loadTokenModule } = require('./figma-config');
 
 const cfg = loadConfig();
+const rel = (p) => path.relative(cfg.__root, p) || p;
+const TOKENS_BUILD_CMD =
+  (cfg.commands && cfg.commands.tokensBuild) || 'node scripts/build-tokens.js';
 
 // ── args ──────────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
@@ -96,10 +115,54 @@ function paintColor(paints) {
   return onePaint(paints[0]);
 }
 
+// ── variable map (variable id -> code reference) ─────────────────────────────────
+/**
+ * The exact half of token resolution. `build-tokens.js` writes this next to the generated tokens,
+ * keyed by the very same `VariableID:…` that `node.boundVariables` hands us here — so a bound
+ * property names one token instead of every token that happens to share its value.
+ *
+ * Every failure mode degrades to the value-matching fallback with ONE `[warn]`: no tokensDir, no
+ * file yet, unreadable JSON, or a map with no entries. None of them are worth stopping an extract
+ * for, and a silent switch-off would be worse than either.
+ */
+const VARIABLE_MAP_FILE = 'variable-map.generated.json';
+let variableMap = null; // { "VariableID:1:23": { ref, figmaPath, values } }
+
+(function loadVariableMap() {
+  const dir = resolvePath(cfg, cfg.paths.tokensDir);
+  if (!dir) {
+    console.warn(
+      '[warn] paths.tokensDir is not set — no variable map, so tokens are suggested by VALUE (can tie).',
+    );
+    return;
+  }
+  const file = path.join(dir, VARIABLE_MAP_FILE);
+  if (!fs.existsSync(file)) {
+    console.warn(
+      `[warn] no variable map at ${rel(file)} — tokens are suggested by VALUE (can tie). ` +
+        `Run \`${TOKENS_BUILD_CMD}\` to generate it and get exact resolution.`,
+    );
+    return;
+  }
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const vars = parsed && parsed.variables;
+    if (!vars || typeof vars !== 'object' || !Object.keys(vars).length) {
+      throw new Error('it contains no "variables" entries');
+    }
+    variableMap = vars;
+  } catch (e) {
+    console.warn(
+      `[warn] could not read the variable map (${rel(file)}): ${e.message} — ` +
+        'tokens are suggested by VALUE instead.',
+    );
+  }
+})();
+
 // ── generated-token index (value -> code reference) ──────────────────────────────
-// Figma tells us a value ("#1A1A1A", 8) but not which token it came from — resolving that needs
-// the Enterprise-only Variables API. So we go the other way: index the project's own generated
-// token modules by VALUE, and suggest whatever code reference produces the value we found.
+// The FALLBACK for anything the variable map cannot resolve: index the project's own generated
+// token modules by VALUE, and offer whatever code reference produces the value we found. Treat a
+// result as a shortlist — several tokens can share one value, which is exactly what the map fixes.
 const index = new Map(); // normalized value -> Set(reference)
 function addIdx(value, ref) {
   const key = String(value).toUpperCase();
@@ -174,10 +237,14 @@ for (const entry of tokenIndexSpec) {
     console.warn(`[warn] could not index ${label} for suggestions: ${e.message}`);
   }
 }
-function suggest(value) {
+/** Up to three code references that produce `value`. Empty when nothing matches. */
+function valueMatches(value) {
   const hit = index.get(String(value).toUpperCase());
-  if (!hit) return '';
-  return '  ⇒ token: ' + [...hit].slice(0, 3).join(' | ');
+  return hit ? [...hit].slice(0, 3) : [];
+}
+function suggest(value) {
+  const hits = valueMatches(value);
+  return hits.length ? '  ⇒ token: ' + hits.join(' | ') : '';
 }
 
 // ── spacing ramp → code reference ────────────────────────────────────────────────
@@ -289,6 +356,72 @@ function bound(node, ...keys) {
   const bv = node.boundVariables || {};
   return keys.some((k) => Object.keys(bv).some((bk) => bk.toLowerCase().includes(k)));
 }
+
+const staleBindings = []; // bound to a variable id the export doesn't know about
+
+/** `{ type: 'VARIABLE_ALIAS', id }` → the id. Anything else → null. */
+function aliasId(entry) {
+  return entry && typeof entry.id === 'string' && entry.id ? entry.id : null;
+}
+
+/**
+ * The variable id bound to ONE property. Two shapes live in `boundVariables` and mixing them up
+ * silently attributes the wrong token: the paint-ish keys (`fills`, `strokes`) hold an ARRAY
+ * parallel to the paint stack, so paint 2's variable is `fills[2]` — every other key
+ * (`cornerRadius`, `itemSpacing`, `paddingLeft`, `strokeWeight`) holds a single alias object.
+ *
+ * Matching is by KEY NAME, never by position in the object: a node can bind four different
+ * variables and the order Figma serializes them in is not a contract. A shorter-than-expected
+ * array (an unbound paint in the stack) just yields null and falls through to value matching.
+ */
+function boundVariableId(node, keys, paintIndex = 0) {
+  const bv = node.boundVariables || {};
+  for (const bk of Object.keys(bv)) {
+    if (!keys.some((k) => bk.toLowerCase().includes(k))) continue;
+    const v = bv[bk];
+    const id = Array.isArray(v) ? aliasId(v[paintIndex]) : aliasId(v);
+    if (id) return id;
+  }
+  return null;
+}
+
+/**
+ * The token line for one styled property, in descending order of trust:
+ *   exact — the bound id is in the map: that IS the token; no shortlist, no judgement call.
+ *   stale — bound, but the map has never heard of the id: your export predates this variable. Say
+ *           which id, tally it, and still offer the value match so the run stays useful.
+ *   none  — no map, or the property isn't bound: exactly what this script did before the map.
+ */
+function tokenFor(node, prop, keys, value, paintIndex) {
+  if (!variableMap) return suggest(value);
+  const id = boundVariableId(node, keys, paintIndex);
+  if (!id) return suggest(value);
+  const entry = variableMap[id];
+  if (entry && entry.ref) return `  ⇒ token: ${entry.ref} ✓exact`;
+  staleBindings.push(`${node.name}: ${prop} → ${id}`);
+  const hits = valueMatches(value);
+  return (
+    `  ⇒ ⚠ bound to a variable missing from your export (${id}) — re-export variables` +
+    (hits.length ? `; value match: ${hits.join(' | ')}` : '')
+  );
+}
+
+/**
+ * Gap gets the same treatment, but keeps the code-ramp check: a variable-bound gap can still be a
+ * step your own ramp does not have, and losing that warning would trade one signal for another.
+ */
+function suggestGapToken(node, gap) {
+  if (!variableMap) return suggestSpace(gap);
+  const id = boundVariableId(node, ['itemspacing']);
+  if (!id) return suggestSpace(gap);
+  const entry = variableMap[id];
+  if (entry && entry.ref) {
+    const offRamp = gap && SPACE_RAMP.length && !SPACE_REF.has(gap);
+    return ` ⇒ ${entry.ref} ✓exact${offRamp ? ' ⚠OFF-GRID' : ''}`;
+  }
+  staleBindings.push(`${node.name}: gap → ${id}`);
+  return ` ⚠ variable missing from your export (${id})${suggestSpace(gap)}`;
+}
 function size(n) {
   const b = n.absoluteBoundingBox || {};
   return `${Math.round(b.width || 0)}×${Math.round(b.height || 0)}`;
@@ -327,7 +460,7 @@ function walk(n, ind, d, inInstance) {
       })
       .join(' ');
     extra.push(
-      `${n.layoutMode} gap=${disp(gap)}${gapMark}${suggestSpace(gap)} pad[${padStr}]${padMark}`,
+      `${n.layoutMode} gap=${disp(gap)}${gapMark}${suggestGapToken(n, gap)} pad[${padStr}]${padMark}`,
     );
     // Same rule as the off-grid split below: spacing inside an instance is the component's, so an
     // unbound gap in there is not a binding YOU are missing. Only tally spacing you authored.
@@ -354,13 +487,17 @@ function walk(n, ind, d, inInstance) {
   }
   if ('cornerRadius' in n) {
     const b = bound(n, 'radius', 'corner');
-    extra.push(`radius=${n.cornerRadius}${b ? ' ✓bound' : ' ⚠LITERAL'}${suggest(n.cornerRadius)}`);
+    const note = tokenFor(n, 'cornerRadius', ['radius', 'corner'], n.cornerRadius);
+    extra.push(`radius=${n.cornerRadius}${b ? ' ✓bound' : ' ⚠LITERAL'}${note}`);
     if (!b) literals.push(`${n.name}: cornerRadius=${n.cornerRadius}`);
   }
   if (n.strokes && n.strokes.length && n.strokeWeight != null) {
     const col = paintColor(n.strokes);
     const b = bound(n, 'stroke');
-    extra.push(`stroke=${n.strokeWeight}px ${col}${b ? ' ✓bound' : ' ⚠LITERAL'}${suggest(col)}`);
+    // The COLOR is what the suggestion names, so resolve `strokes[0]` — a strokeWeight-only
+    // binding must not lend its (numeric) token to the paint on this line.
+    const note = tokenFor(n, 'stroke', ['strokes'], col, 0);
+    extra.push(`stroke=${n.strokeWeight}px ${col}${b ? ' ✓bound' : ' ⚠LITERAL'}${note}`);
     if (!b) literals.push(`${n.name}: stroke ${col}`);
   }
   if (n.fills && n.fills.length) {
@@ -368,7 +505,8 @@ function walk(n, ind, d, inInstance) {
     const bindMark = b ? ' ✓bound' : ' ⚠LITERAL';
     if (n.fills.length === 1) {
       const col = onePaint(n.fills[0]);
-      extra.push(`fill=${col}${hiddenMark(n.fills[0])}${bindMark}${suggest(col)}`);
+      const note = tokenFor(n, 'fill', ['fills'], col, 0);
+      extra.push(`fill=${col}${hiddenMark(n.fills[0])}${bindMark}${note}`);
       if (!b && col.startsWith('#')) literals.push(`${n.name}: fill ${col}`);
     } else {
       // A shape can carry MULTIPLE fills, and they COMPOSITE — paints[0] is the BOTTOM layer.
@@ -380,7 +518,9 @@ function walk(n, ind, d, inInstance) {
       n.fills.forEach((p, i) => {
         const col = onePaint(p);
         const pos = i === 0 ? 'bottom' : i === n.fills.length - 1 ? 'top' : `${i + 1}`;
-        extra.push(`  [${i}/${pos}] ${col}${hiddenMark(p)}${suggest(col)}`);
+        // Each paint carries its OWN binding, so resolve per index rather than reusing paint 0's.
+        const note = tokenFor(n, `fill[${i}]`, ['fills'], col, i);
+        extra.push(`  [${i}/${pos}] ${col}${hiddenMark(p)}${note}`);
         if (!b && col.startsWith('#')) literals.push(`${n.name}: fill[${i}] ${col}`);
       });
     }
@@ -415,8 +555,15 @@ function walk(n, ind, d, inInstance) {
   const spacingLegend = SPACING_TOKENIZED
     ? '        gap/pad ✓bound = bound to a spacing variable | ⚠LITERAL = hardcoded | ⚠OFF-GRID = not on the ramp\n'
     : `        gap/pad ⇒ ${SPACE_REF_TEMPLATE.replace('{n}', 'N')} = on the code-owned spacing ramp | ⚠OFF-GRID = not on the ramp (snap, or extend the ramp)\n`;
+  // The ✓exact lines only make sense when the map is loaded; without it every suggestion is a
+  // value match and saying so twice is noise.
+  const exactLegend = variableMap
+    ? '        ⇒ token: X ✓exact = resolved by variable id from your export — X IS the token, not a guess\n' +
+      '        a suggestion WITHOUT ✓exact is a value match: several tokens can share one value\n'
+    : '';
   console.log(
     'Legend: ✓bound = bound to a Figma variable (reference the token) | ⚠LITERAL = hardcoded (VERIFY!)\n' +
+      exactLegend +
       spacingLegend +
       '        fills[N] = MULTI-FILL, listed bottom→top: they composite, so no single paint is the color\n',
   );
@@ -461,6 +608,15 @@ function walk(n, ind, d, inInstance) {
       `\nℹ ${uniqOffGridDS.length} off-ramp value(s) INSIDE component instances — owned by the component instance, not authored here. Do NOT snap these; listed for reference only:`,
     );
     for (const l of uniqOffGridDS) console.log('   - ' + l);
+  }
+  const uniqStale = [...new Set(staleBindings)];
+  if (uniqStale.length) {
+    // Not a design defect and not a code defect — a PIPELINE one. The design file has variables the
+    // generated tokens have never seen, so every one of these fell back to a value guess.
+    console.log(
+      `\n⚠ ${uniqStale.length} value(s) bound to variables MISSING from your variables export — your token pipeline is behind the design file. Re-export the variables from Figma and re-run \`${TOKENS_BUILD_CMD}\`; until then these were matched by value, which can tie:`,
+    );
+    for (const l of uniqStale) console.log('   - ' + l);
   }
   const gotchas = Array.isArray(cfg.gotchas) ? cfg.gotchas : [];
   if (gotchas.length) {

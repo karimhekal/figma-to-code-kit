@@ -52,12 +52,17 @@ variant, so one variant gets built, and the other eight surface as bugs later.
   picked. Verify with design, then reference the *intended* token in code. Copying a literal
   into code launders a design bug into the product.
 
-**The binding check needs no Enterprise plan.** `boundVariables` ships on the ordinary nodes
-endpoint on every plan. The Variables API that resolves a variable's *name* is
-Organization/Enterprise-only — which is why the extractor suggests the code reference by
-matching the **resolved value** against your generated token modules. That means suggestions
-can tie when two tokens share a value: prefer the one scoped to the component over a
-mode-agnostic palette step (see `SKILL.md` step 2).
+**Neither the binding check nor naming the token needs an Enterprise plan.** `boundVariables`
+ships on the ordinary nodes endpoint on every plan, and it carries the variable's **id** — the
+same id the variables export stamps on every token. The token build joins them, so a bound value
+resolves to exactly one code reference, printed `⇒ token: X ✓exact`. Reference `X`; there is no
+judgement call to make.
+
+Two cases still fall back to matching the **resolved value** against the generated token modules,
+and a value match can tie: an unbound `⚠LITERAL` (nothing to resolve), and a bound value whose
+variable is missing from the export (printed as such, and tallied at the end — the export is
+behind the design; re-export and re-run the token build). When a suggestion is a tie, prefer the
+token scoped to the component over a mode-agnostic palette step (see `SKILL.md` step 2).
 
 ## 5. Instances get overridden — the bound value is the truth, the name is a hint
 

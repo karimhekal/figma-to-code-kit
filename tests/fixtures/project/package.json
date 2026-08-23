@@ -1,0 +1,10 @@
+{
+  "name": "example-design-app",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Synthetic consumer project used by the kit's tests. config-check resolves commands.* against these scripts (statically — it never runs them).",
+  "scripts": {
+    "tokens:build": "node scripts/build-tokens.js",
+    "validate": "echo \"validate would run here\""
+  }
+}

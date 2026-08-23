@@ -35,11 +35,11 @@ Use both — they're good at different things. But if you're picking one backbon
 | **Visual verification** | Images endpoint at scale 0.01–4× → pixel-diff loop | `get_screenshot` has no documented scale or fidelity contract |
 | **Headless / CI** | Personal access token, fully scriptable | Remote server is OAuth-only; PATs rejected, no CI story |
 | **Rate limits** | 10–20 requests/**minute** | 200–600 tool calls/**day** on Dev/Full seats |
-| **Variable *names*** | REST Variables API is Enterprise-only — this kit works around it by matching values against your generated tokens | ✅ `get_variable_defs` returns names on any paid plan |
+| **Variable *names*** | Resolved **exactly** — `boundVariables` gives the variable id, the variables export gives the same id, `build-tokens` joins them into a map. No Enterprise plan, no value guessing. Needs an export on disk | ✅ `get_variable_defs` needs nothing but the file — the better answer when you have no export |
 | **Component reuse** | Config-driven instance→component map | ✅ Code Connect integration is genuinely better ([Figma's eval](https://www.figma.com/blog/the-benefits-of-code-connect-in-mcp/): −29.5% tokens, −19.6% task time) |
 | **Maintenance** | You own ~1.5k lines of scripts | Figma maintains it |
 
-**The short version:** the MCP is closer to a specification viewer with a code-generation front-end. It wins on variable-name resolution and Code Connect. It loses on everything the fidelity loop actually depends on — binding detection, state enumeration, measured visual comparison, non-web frameworks, and automation.
+**The short version:** the MCP is closer to a specification viewer with a code-generation front-end. It wins on Code Connect, and on variable names when you have no variables export to join against. It loses on everything the fidelity loop actually depends on — binding detection, state enumeration, measured visual comparison, non-web frameworks, and automation.
 
 Worth noting: the most-adopted third-party Figma MCP server ([Framelink](https://github.com/GLips/Figma-Context-MCP), ~15.7k stars) works by *wrapping the REST API and simplifying the response* — the same architecture as this kit, served over MCP. Compact structured extraction is the approach that keeps winning; this kit just gives you the pieces directly, and doesn't stop you from also pointing the MCP at the same file when you want a variable name.
 
@@ -61,12 +61,13 @@ Worth noting: the most-adopted third-party Figma MCP server ([Framelink](https:/
 ```
   Figma REST API
         │
-        ├─ figma-extract ──► compact spec: geometry, ✓bound/⚠LITERAL, full state matrix
+        ├─ figma-extract ──► compact spec: geometry, ✓bound/⚠LITERAL, full state matrix,
+        │                    exact token per bound value (via the variable map)
         ├─ figma-render  ──► ground-truth PNG
         ├─ figma-icon    ──► exact SVG → currentColor-normalized registry
         ├─ figma-asset   ──► exact SVG files for large art
         ├─ figma-text    ──► translatable copy, grouped by screen
-        └─ build-tokens  ──► your variables export → typed token modules
+        └─ build-tokens  ──► your variables export → typed token modules + variable map
                     │
                     ▼
           figma.config.json  ◄── the ONLY project-specific file
@@ -117,16 +118,17 @@ node scripts/figma-extract.js <a-core-component-node-id>
 
 | Script | What it does |
 |---|---|
-| `figma-extract.js` | The core. Exact spec per node + ✓bound/⚠LITERAL flags + the full component state matrix + token suggestions. |
+| `figma-extract.js` | The core. Exact spec per node + ✓bound/⚠LITERAL flags + the full component state matrix + the **exact** token behind each bound value (resolved by variable id, not guessed from the value). |
 | `figma-render.js` | Renders nodes to PNG at up to 4× for visual comparison. Retries the images API's 200-with-`{err}` render timeouts. |
 | `figma-pixel.js` | Samples composited RGB at a point, or finds content runs on a row. Turns "looks right" into a measurement. |
 | `figma-icon.js` | Exports icons as exact SVG, normalizes hex **and named** white/black to `currentColor`, upserts a name-keyed registry. |
 | `figma-asset.js` | Exports large/multicolor art as `.svg` files, colors preserved (or `--mono`). |
 | `figma-text.js` | Pulls translatable copy grouped by screen frame in reading order. |
-| `build-tokens.js` | Figma variables export (DTCG) → typed token modules, with alias resolution and a broken-alias report. |
+| `build-tokens.js` | Figma variables export (DTCG) → typed token modules, with alias resolution and a broken-alias report. Also emits the **variable map** (variable id → code reference) that makes the extractor's token resolution exact. |
 | `build-typography.js` | Fetches Figma **text styles** (which are not variables, so they're absent from the export) → a typed type ramp. |
 | `patch-font-metrics.py` | Rewrites a font's vertical metrics to its measured ink box, so design line heights render without clipping. |
 | `config-check.js` | Validates the config against reality. The guard against config rot. |
+| `figma-drift.js` | Detects the design moving while the code stands still: the file's `lastModified` vs your baselines, the export on disk vs the hash the token build recorded, and a per-pixel re-render of your canonical components with a diff image. The CI-schedulable guard against a green build shipping last month's design. |
 
 ## The skill
 
@@ -140,10 +142,29 @@ Nothing project-specific is written in prose. That's on purpose: prose can't be 
 
 ## Honest limitations
 
-- **Variable *names* need Enterprise.** Figma's Variables REST API is Enterprise-only. This kit detects *that* a property is bound (the `boundVariables` field on the nodes endpoint, which works on lower plans) and suggests the token by matching resolved values against your generated files. That can tie when two tokens share a value. The MCP's `get_variable_defs` resolves names on any paid plan — a good reason to use both.
-- **The variables export is a manual step.** A designer exports from Figma; you drop the files in. Same Enterprise gating is the cause.
+- **Exact variable resolution is only as current as your export.** The kit names the exact token behind a bound property without an Enterprise plan: `boundVariables` on the nodes endpoint returns the variable's *id*, every leaf of the variables export carries that *same id*, and `build-tokens` joins the two into `variable-map.generated.json` — so `⇒ token: components.checkbox.color.on ✓exact` is a fact, not a match. The catch is the export: a variable added to the design after your last export has no entry, and those show up inline and in an end-of-run tally as "missing from your export" rather than being silently mis-resolved. Re-export, re-run the token build, and they resolve. With no export at all you fall back to value matching, which ties when two tokens share a value — that is where the MCP's `get_variable_defs` is the better answer.
+- **The variables export is a manual step.** A designer exports from Figma; you drop the files in. The Variables REST API that would automate it is Enterprise-only.
 - **One battle-tested adapter.** React Native is proven. Other frameworks need an adapter written.
 - **You own the scripts.** ~1.5k lines. Figma's REST shapes evolve.
+
+## Contributing
+
+```bash
+npm install     # pngjs, the only dependency
+npm test        # Node's built-in test runner — no framework, ~6s
+```
+
+The suite runs the real CLIs as child processes against throwaway projects under your temp
+directory, with the Figma API stubbed out — so it never touches the network, your
+`figma.config.json`, or your token. If you change a script's **output**, expect a test to fail:
+the printout is the contract, and a `✓bound` flag that quietly stops appearing is a regression with
+no other symptom.
+
+See [tests/README.md](tests/README.md) for how the network stub works and how to add a fixture.
+
+PRs that change extraction behaviour should come with the case that motivated it — the fixture
+Figma response in `tests/fixtures/api/` is hand-authored to hold one clean example of each
+situation, and it is meant to grow that way.
 
 ## Prior art & credit
 

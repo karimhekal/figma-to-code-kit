@@ -114,6 +114,11 @@ const DEFAULTS = {
     faceFixes: {},
   },
 
+  // Drift detection (figma-drift.js) — the guard against the design moving while the code does
+  // not. `nodes` is the handful of CANONICAL components whose renders are baselined ([{ id, name }]);
+  // `tolerance` is the per-channel slack that keeps PNG encoder noise from crying wolf.
+  drift: { baselineDir: 'figma-baselines', nodes: [], tolerance: 2 },
+
   // Project commands the skill tells the agent to run. Keep them accurate — config-check runs them.
   commands: { tokensBuild: null, validate: null },
 

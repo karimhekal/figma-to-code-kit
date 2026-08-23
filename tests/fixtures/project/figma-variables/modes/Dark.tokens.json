@@ -1,0 +1,50 @@
+{
+  "Component": {
+    "App Theme": {
+      "Background": {
+        "Primary": {
+          "$type": "color",
+          "$value": "{color.neutral.900}",
+          "$extensions": { "com.figma.variableId": "VariableID:30:400" }
+        },
+        "Scrim": {
+          "$type": "color",
+          "$value": "{color.scrim}",
+          "$extensions": { "com.figma.variableId": "VariableID:30:401" }
+        }
+      },
+      "Text": {
+        "Primary": {
+          "$type": "color",
+          "$value": "{color.neutral.0}",
+          "$extensions": { "com.figma.variableId": "VariableID:30:410" }
+        }
+      }
+    },
+
+    "Checkbox": {
+      "Color": {
+        "On": {
+          "$type": "color",
+          "$value": "{color.brand.100}",
+          "$extensions": { "com.figma.variableId": "VariableID:35:590" }
+        },
+        "Off": {
+          "$type": "color",
+          "$value": "{color.neutral.900}",
+          "$extensions": { "com.figma.variableId": "VariableID:35:591" }
+        },
+        "Disabled": {
+          "$type": "color",
+          "$value": "{color.brand.retired}",
+          "$extensions": { "com.figma.variableId": "VariableID:35:592" }
+        }
+      },
+      "Corner radius": {
+        "$type": "number",
+        "$value": "{Corner radius.8}",
+        "$extensions": { "com.figma.variableId": "VariableID:35:593" }
+      }
+    }
+  }
+}

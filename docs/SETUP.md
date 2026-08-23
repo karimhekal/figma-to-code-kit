@@ -167,12 +167,13 @@ several variants — and run:
 
 OUTPUT: the draft `figma.config.json`, plus a short report of what you could not
 determine. LEAVE THESE FIELDS EMPTY for a human — do not invent them:
-`files.volatile`, `tokens.typography.forbiddenProps`, `icons.rtlMirrored`, `gotchas`.
+`files.volatile`, `tokens.typography.forbiddenProps`, `icons.rtlMirrored`,
+`drift.nodes`, `gotchas`.
 ```
 
 ### Then fill in the judgement fields yourself
 
-These four cannot be derived from either the repo or the Figma file, because they encode a
+These five cannot be derived from either the repo or the Figma file, because they encode a
 decision somebody made:
 
 | Field | The question it answers |
@@ -180,7 +181,8 @@ decision somebody made:
 | `files.volatile` | Which files get republished wholesale, so their node ids cannot be trusted (see step 3). |
 | `tokens.typography.forbiddenProps` | Which text props your project refuses to let anyone hand-set, and **why** — the reason string is shown to the agent. Start empty. Add a prop only after a real rendering problem forces the rule; a forbidden list invented up front just makes the agent argue with you. |
 | `icons.rtlMirrored` | Which icons flip under right-to-left layout. Directional arrows and chevrons usually do; a "next track" media glyph usually does not; a logo never does. This is a UX call, not something to auto-detect from the shape. |
-| `gotchas` | Empty on day one. One line per surprise, added as you hit them (step 8). |
+| `drift.nodes` | Which few components are canonical enough to baseline visually — a button, an input, a card. A judgement about what represents the system, not a list of everything in it (see [step 8](#8-keep-it-honest-over-time)). |
+| `gotchas` | Empty on day one. One line per surprise, added as you hit them (step 9). |
 
 ---
 
@@ -233,11 +235,12 @@ Two caveats on reading the ratio:
   bound. Set `tokens.spacing.tokenizedInFigma` from what you actually observed in pass 2; when
   it is `false`, the extractor checks gap/padding against your code ramp and flags `⚠OFF-GRID`
   instead.
-- **Variable *names* need an Enterprise plan.** The kit detects *that* a property is bound (from
-  `boundVariables` on the ordinary nodes endpoint, available on every plan) and suggests the token
-  by matching values. It cannot read the variable's name, because the Variables REST API is
-  Enterprise-only. So a tie between two tokens that share a value is possible — the suggestion is
-  a shortlist, not a verdict.
+- **Token names are exact once the token build has run, and matched by value until then.**
+  `boundVariables` (on the ordinary nodes endpoint, every plan) carries the bound variable's *id*,
+  and the token build records that same id against the code reference it generated — so bound
+  values print `✓exact` and there is nothing to choose between. You have not run the token build
+  yet at this point in setup, so this first pass falls back to matching by value, where two tokens
+  sharing a value can tie. Re-run this extract after step 6 and the ties disappear.
 
 ---
 
@@ -338,7 +341,57 @@ by design. `[warn] could not index …` means you lose token suggestions, not th
 
 ---
 
-## 8. Pilot one component, end to end
+## 8. Keep it honest over time
+
+Everything above set up a **snapshot**. The variables export is a file somebody dropped in; the node
+ids were copied by hand. That snapshot is why the kit works on any Figma plan — and it is the one
+part of the setup that can rot without producing a single error.
+
+Two failures live here, and neither one breaks a build:
+
+1. **A designer changes the design and nothing in the repo changes.** No error, no failing test, no
+   diff to review. The app simply keeps shipping the values from the last export, and the first
+   person to notice is whoever compares the two on a screen — usually in QA, usually late.
+2. **A fresh export is dropped in and the token build never re-runs.** The generated token modules
+   still compile and still look right; they just describe an export that is no longer the one
+   sitting next to them in the repo. Dropping the files in is the step a human does. Re-running the
+   build is the step a human forgets.
+
+`figma-drift.js` makes both loud. Capture a reference point once:
+
+```bash
+node scripts/figma-drift.js --update    # renders drift.nodes, records the file's lastModified
+git add figma-baselines && git commit   # an uncommitted baseline detects nothing
+```
+
+Pick the nodes for `drift.nodes` the way you would pick smoke tests: **a handful of canonical
+components** — a button, an input, a card — not the whole library. Each node costs a render, this
+is meant to run on a schedule, and three baselines somebody actually reads are worth more than
+forty nobody does.
+
+Then run it on a schedule — **weekly is the right cadence** for most teams, since it is a design
+review prompt rather than a build gate:
+
+```bash
+node scripts/figma-drift.js --fail-on-drift
+```
+
+It reports the design file's `lastModified` against your baseline, re-hashes the export on disk
+against the hash recorded by the token build, and re-renders your baselined nodes for a per-pixel
+comparison — with a diff PNG showing exactly where the pixels moved. Only the pixel layer can see a
+padding tweak, a new state, or a swapped icon; none of those touch a variable, so no token check
+will ever notice them.
+
+**A red run is not a failure — it is a question.** Something in the design moved and nobody has
+decided whether the code should follow. Look at the diff, talk to design, then re-baseline with
+`--update` to accept it.
+
+The offline half of that check also runs inside `config-check.js`, so a stale token build is caught
+by the validation you already run, with no network and no secret.
+
+---
+
+## 9. Pilot one component, end to end
 
 Do not roll the kit out across a backlog before one component has been through the whole loop.
 Pick something with real variants — a button or an input, not a divider — and run the skill's

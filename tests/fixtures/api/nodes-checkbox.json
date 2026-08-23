@@ -1,0 +1,128 @@
+{
+  "name": "Example Design System",
+  "lastModified": "2026-01-05T10:00:00Z",
+  "version": "1000000000",
+  "nodes": {
+    "1234:5678": {
+      "document": {
+        "id": "1234:5678",
+        "name": "Checkbox",
+        "type": "COMPONENT_SET",
+        "absoluteBoundingBox": { "x": 0, "y": 0, "width": 240, "height": 132 },
+        "componentPropertyDefinitions": {
+          "State#1:0": { "type": "VARIANT", "variantOptions": ["Default", "Checked", "Disabled"] },
+          "Size#2:0": { "type": "VARIANT", "variantOptions": ["Small", "Large"] },
+          "Label#3:0": { "type": "TEXT", "defaultValue": "Remember me" },
+          "Show hint#4:0": { "type": "BOOLEAN", "defaultValue": false }
+        },
+        "children": [
+          {
+            "id": "1234:5679",
+            "name": "State=Default, Size=Small",
+            "type": "COMPONENT",
+            "absoluteBoundingBox": { "x": 0, "y": 0, "width": 240, "height": 36 },
+            "layoutMode": "HORIZONTAL",
+            "itemSpacing": 8,
+            "paddingTop": 12,
+            "paddingRight": 16,
+            "paddingBottom": 12,
+            "paddingLeft": 16,
+            "cornerRadius": 8,
+            "strokeWeight": 1,
+            "strokes": [
+              { "type": "SOLID", "color": { "r": 0.9098, "g": 0.902, "b": 0.9961, "a": 1 } }
+            ],
+            "fills": [
+              { "type": "SOLID", "color": { "r": 0.2275, "g": 0.1843, "b": 0.9412, "a": 1 } }
+            ],
+            "boundVariables": {
+              "cornerRadius": { "type": "VARIABLE_ALIAS", "id": "VariableID:20:801" },
+              "fills": [{ "type": "VARIABLE_ALIAS", "id": "VariableID:35:590" }]
+            },
+            "children": [
+              {
+                "id": "1234:5680",
+                "name": "Label",
+                "type": "TEXT",
+                "absoluteBoundingBox": { "x": 16, "y": 12, "width": 120, "height": 20 },
+                "characters": "Remember me",
+                "style": {
+                  "fontSize": 15,
+                  "fontWeight": 700,
+                  "lineHeightPx": 20,
+                  "letterSpacing": 0
+                },
+                "fills": [
+                  { "type": "SOLID", "color": { "r": 0.0627, "g": 0.0627, "b": 0.0784, "a": 1 } }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "1234:5681",
+            "name": "State=Checked, Size=Large",
+            "type": "COMPONENT",
+            "absoluteBoundingBox": { "x": 0, "y": 48, "width": 240, "height": 48 },
+            "layoutMode": "VERTICAL",
+            "itemSpacing": 13,
+            "paddingTop": 12,
+            "paddingRight": 16,
+            "paddingBottom": 12,
+            "paddingLeft": 16,
+            "cornerRadius": 5,
+            "fills": [
+              { "type": "SOLID", "color": { "r": 1, "g": 1, "b": 1, "a": 1 } },
+              {
+                "type": "SOLID",
+                "color": { "r": 0.2275, "g": 0.1843, "b": 0.9412, "a": 1 },
+                "opacity": 0.12
+              }
+            ],
+            "children": [
+              {
+                "id": "1234:5682",
+                "name": "Box",
+                "type": "INSTANCE",
+                "absoluteBoundingBox": { "x": 16, "y": 60, "width": 24, "height": 24 },
+                "layoutMode": "HORIZONTAL",
+                "itemSpacing": 7,
+                "paddingTop": 0,
+                "paddingRight": 0,
+                "paddingBottom": 0,
+                "paddingLeft": 0
+              }
+            ]
+          },
+          {
+            "id": "1234:5683",
+            "name": "State=Disabled, Size=Small",
+            "type": "COMPONENT",
+            "absoluteBoundingBox": { "x": 0, "y": 108, "width": 240, "height": 36 },
+            "cornerRadius": 8,
+            "boundVariables": {
+              "cornerRadius": { "type": "VARIABLE_ALIAS", "id": "VariableID:99:999" }
+            },
+            "children": [
+              {
+                "id": "1234:5684",
+                "name": "Hint",
+                "type": "TEXT",
+                "absoluteBoundingBox": { "x": 16, "y": 115, "width": 200, "height": 22 },
+                "characters": "Unavailable in this plan",
+                "style": {
+                  "fontSize": 17,
+                  "fontWeight": 400,
+                  "lineHeightPx": 22,
+                  "letterSpacing": 0
+                },
+                "fills": [
+                  { "type": "SOLID", "color": { "r": 0.0627, "g": 0.0627, "b": 0.0784, "a": 1 } }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

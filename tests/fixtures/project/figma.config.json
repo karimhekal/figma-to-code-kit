@@ -1,0 +1,93 @@
+{
+  "files": {
+    "default": "EXAMPLEFILEKEY123456",
+    "screens": "EXAMPLESCREENSKEY7890",
+    "volatile": ["screens"]
+  },
+
+  "auth": { "envVar": "FIGMA_ACCESS_TOKEN", "envFile": ".env.local" },
+
+  "design": {
+    "frameWidth": 400,
+    "frameHeight": 800,
+    "compareWidths": [400],
+    "modes": ["light", "dark"]
+  },
+
+  "paths": {
+    "tokensDir": "src/theme/tokens",
+    "variablesExport": "figma-variables",
+    "renderDir": "renders"
+  },
+
+  "tokens": {
+    "index": [
+      {
+        "path": "src/theme/tokens/palette.generated.ts",
+        "exports": { "palette": "palette", "cornerRadius": "cornerRadius" }
+      },
+      {
+        "path": "src/theme/tokens/themes.generated.ts",
+        "nested": [{ "export": "themes", "perMode": true, "pick": ["components", "semantic"] }]
+      }
+    ],
+
+    "spacing": {
+      "tokenizedInFigma": false,
+      "rampPath": "src/theme/tokens/space.ts",
+      "rampExport": "space",
+      "refTemplate": "space[{n}]",
+      "banned": []
+    },
+
+    "typography": {
+      "rampPath": "src/theme/tokens/typography.generated.ts",
+      "rampExport": "textStyles",
+      "component": "AppText",
+      "suggestionTemplate": "<{component} variant={variant} weight={weight}>",
+      "forbiddenProps": [],
+      "forbiddenReason": ""
+    }
+  },
+
+  "components": {
+    "index": "src/components/ui/index.ts",
+    "prefix": "App",
+    "themeAccessor": "useTheme()",
+    "instanceMap": {},
+    "codeConnect": { "enabled": false }
+  },
+
+  "icons": { "extraNamedColors": ["white", "black"], "rtlMirrored": [] },
+
+  "text": { "noiseWords": ["Title", "Label"], "noisePatterns": [], "rtl": false },
+
+  "variables": {
+    "sources": [
+      { "match": "^Primitives\\.tokens\\.json$", "role": "primitives" },
+      { "match": "^Light\\.tokens\\.json$", "role": "mode:light" },
+      { "match": "^Dark\\.tokens\\.json$", "role": "mode:dark" }
+    ],
+    "groups": {
+      "color": "palette",
+      "Corner radius": "radius",
+      "Component": "components",
+      "Component.App Theme": "semantic"
+    },
+    "ignoreKeys": []
+  },
+
+  "typographySource": { "prefixes": ["Mobile/"], "order": [], "faceFixes": {} },
+
+  "drift": {
+    "baselineDir": "figma-baselines",
+    "nodes": [{ "id": "1234:5678", "name": "button" }],
+    "tolerance": 2
+  },
+
+  "commands": { "tokensBuild": "npm run tokens:build", "validate": "npm run validate" },
+
+  "gotchas": [
+    "The example library ships two components named Chip; the second is the deprecated original."
+  ]
+}

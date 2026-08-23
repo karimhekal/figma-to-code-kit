@@ -29,9 +29,35 @@
  *   - `palette.generated.ts` — the mode-independent primitives: `palette`, any per-mode `ramps`,
  *     and the radius scale (exported under the camelCased name of the group it came from).
  *   - `themes.generated.ts`  — `themes`, keyed by YOUR mode names, each `{ semantic, components }`.
+ *   - `variable-map.generated.json` — variable id → code reference (see the next section).
  *
  * Nothing about light/dark is baked in: modes come from `variables.sources`, and a project with
  * three modes (or one) gets three keys (or one).
+ *
+ * THE VARIABLE MAP — WHY THIS SCRIPT IS THE ONLY PLACE THAT CAN WRITE IT
+ * ---------------------------------------------------------------------
+ * Every leaf in the export carries `$extensions["com.figma.variableId"]` (e.g. `VariableID:1:23`),
+ * and the ORDINARY nodes endpoint — `/v1/files/:key/nodes`, no privileged plan — carries the SAME
+ * identifier back on each node as `boundVariables[prop] = { type: 'VARIABLE_ALIAS', id: … }`.
+ * Verified live: the Variables API is Enterprise-only and 403s on lower plans, but BOTH of those
+ * are available on every plan. Joining them on the id lets figma-extract name the exact token a
+ * property is bound to, instead of guessing from the resolved value — where `#FFFFFF` ties across
+ * three tokens and a human has to pick. That guess was the kit's biggest accuracy gap, and it was
+ * never necessary.
+ *
+ * Only this script can build the join: it is the one place that knows BOTH the Figma path of a
+ * token and the code destination it is routed to. So while transforming, it records each leaf's
+ * variable id against the reference the token becomes in code, and writes:
+ *
+ *   { "$meta": { generator, exportHash, sources, variableCount },
+ *     "variables": { "VariableID:1:23": { ref, figmaPath, values } } }
+ *
+ * `ref` is spelled exactly the way figma-extract writes references (`palette.brand[500]`,
+ * `components.checkbox.color.on`) so it can be pasted into code. `values` is keyed by mode — `'*'`
+ * for a single-mode source such as the primitives file — so a reviewer can see what the variable
+ * resolves to per theme. `exportHash` fingerprints the export that produced the map, which is how
+ * you tell a stale map from a current one. Exports that omit the variable ids simply produce no
+ * map, and the extractor falls back to value matching with a warning.
  *
  * CONFIGURATION (figma.config.json → `variables`)
  *   sources: [{ match: "<regex source>", role: "primitives" | "mode:<name>" }]
@@ -56,6 +82,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { loadConfig, resolvePath } = require('./figma-config');
 
 const cfg = loadConfig();
@@ -264,16 +291,63 @@ function camelKey(key) {
 const isLeaf = (node) => node !== null && typeof node === 'object' && '$value' in node;
 const isGroup = (node) => node !== null && typeof node === 'object' && !Array.isArray(node);
 
+// ─── Variable map ─────────────────────────────────────────────────────────────
+/** Where Figma stashes the variable id on a leaf. Some exports omit it; that is not an error. */
+const VARIABLE_ID_EXT = 'com.figma.variableId';
+const variableMap = new Map(); // variable id -> { ref, figmaPath, values }
+
+/**
+ * Spell a code reference the way figma-extract writes one: dot-separated, but a NUMERIC key in
+ * brackets — `palette.brand[500]`, `cornerRadius[8]` — because that is how the generated modules
+ * are actually indexed in code. The two must agree exactly or the map's whole point is lost.
+ */
+function formatRef(parts) {
+  return parts.reduce((acc, part, i) => {
+    const key = String(part);
+    if (i === 0) return key;
+    return /^\d+$/.test(key) ? `${acc}[${key}]` : `${acc}.${key}`;
+  }, '');
+}
+
+/**
+ * One entry per VARIABLE, not per file: the same variable appears once in every mode file it has a
+ * value for, so later modes merge into the entry the first one created (that is what makes `values`
+ * a per-mode object). A leaf with no id is skipped in silence — the map degrades to "fewer exact
+ * hits", never to a wrong one.
+ */
+function recordVariable(leaf, refParts, figmaParts, value, ctx) {
+  const ext = leaf.$extensions;
+  const id = ext && typeof ext[VARIABLE_ID_EXT] === 'string' ? ext[VARIABLE_ID_EXT] : null;
+  if (!id || !refParts.length) return;
+  const mode = (ctx && ctx.mode) || '*';
+  const existing = variableMap.get(id);
+  if (existing) {
+    existing.values[mode] = value;
+    return;
+  }
+  variableMap.set(id, {
+    ref: formatRef(refParts),
+    figmaPath: figmaParts.join('.'),
+    values: { [mode]: value },
+  });
+}
+
 let leafCount = 0;
-function transform(node, root) {
+/**
+ * `refParts` tracks the CODE path being built (bucket root + camelCased keys) and `figmaParts` the
+ * original Figma path, so a leaf can be recorded under both without a second walk.
+ */
+function transform(node, root, refParts = [], figmaParts = [], ctx = null) {
   if (isLeaf(node)) {
     leafCount++;
-    return convertValue(node.$value, root);
+    const value = convertValue(node.$value, root);
+    recordVariable(node, refParts, figmaParts, value, ctx);
+    return value;
   }
   const out = {};
   for (const [k, v] of Object.entries(node)) {
     if (k.startsWith('$') || IGNORE_KEYS.has(k)) continue;
-    out[camelKey(k)] = transform(v, root);
+    out[camelKey(k)] = transform(v, root, [...refParts, camelKey(k)], [...figmaParts, k], ctx);
   }
   return out;
 }
@@ -317,17 +391,25 @@ const modeless = [];
 
 for (const s of sources) if (s.mode) themes[s.mode] = { semantic: {}, components: {} };
 
+/**
+ * The destination bucket AND the root of the code reference that reads it back — `refRoot` is the
+ * generated export name (`palette`, `ramps.<mode>`, the radius scale's own name) or, for the
+ * per-mode themes, the slot as the theme accessor exposes it (`components.*` / `semantic.*`,
+ * mode-agnostic, because code picks the mode at runtime). Returns null when there is nowhere to put
+ * the group.
+ */
 function bucketFor(dest, ctx, groupPath) {
-  if (dest === 'palette') return palette;
+  if (dest === 'palette') return { bucket: palette, refRoot: ['palette'] };
   if (dest === 'radius') {
     // The radius export is named after the group it came from ("Corner radius" -> cornerRadius),
     // so the generated identifier matches what the library actually calls the scale.
     if (!radiusExportName) radiusExportName = camelKey(groupPath[groupPath.length - 1] || 'radius');
-    return radiusScale;
+    return { bucket: radiusScale, refRoot: [radiusExportName] };
   }
   if (dest.startsWith('ramp:')) {
     const mode = dest.slice(5).trim();
-    return (ramps[mode] = ramps[mode] || {});
+    ramps[mode] = ramps[mode] || {};
+    return { bucket: ramps[mode], refRoot: ['ramps', mode] };
   }
   // semantic + components are per-mode, so they need a mode:<name> source to land in.
   if (!ctx.mode) {
@@ -335,7 +417,9 @@ function bucketFor(dest, ctx, groupPath) {
     return null;
   }
   const theme = (themes[ctx.mode] = themes[ctx.mode] || { semantic: {}, components: {} });
-  return dest === 'semantic' ? theme.semantic : theme.components;
+  return dest === 'semantic'
+    ? { bucket: theme.semantic, refRoot: ['semantic'] }
+    : { bucket: theme.components, refRoot: ['components'] };
 }
 
 /** Merge `value` into `bucket` at `relSegments` (the path relative to the routed group). */
@@ -380,10 +464,16 @@ function distribute(node, segments, dest, anchor, ctx) {
       return;
     }
     if (dest === 'ignore') return;
-    const bucket = bucketFor(dest, ctx, anchor.length ? anchor : segments);
-    if (!bucket) return;
+    const target = bucketFor(dest, ctx, anchor.length ? anchor : segments);
+    if (!target) return;
     const relative = segments.slice(anchor.length).map(camelKey);
-    place(bucket, relative, transform(node, ctx.json), segments.join('.') || '(root)');
+    const refBase = [...target.refRoot, ...relative];
+    place(
+      target.bucket,
+      relative,
+      transform(node, ctx.json, refBase, segments, ctx),
+      segments.join('.') || '(root)',
+    );
     return;
   }
 
@@ -477,6 +567,59 @@ if (!written.length) {
   fail('Nothing was generated — every group was ignored or unrouted. Check variables.groups.');
 }
 
+// ─── Variable map ─────────────────────────────────────────────────────────────
+const VARIABLE_MAP_FILE = 'variable-map.generated.json';
+
+/**
+ * Fingerprint the export that produced this map, so a consumer can tell "current" from "written
+ * against last quarter's export". THE RECIPE, stated exactly because other tools re-compute it to
+ * detect a stale token build: take the files `variables.sources` routes (first match per entry,
+ * each file once), express each relative to the export directory with `/` separators, SORT those
+ * paths, concatenate the raw bytes in that order, sha256, keep 12 hex characters.
+ *
+ * Sorting by relative path rather than basename matters when two mode folders hold same-named
+ * files; deduplicating matters when two patterns match one file — either would otherwise make the
+ * hash depend on read order, and a fingerprint that moves on its own is worse than none.
+ */
+function hashSources(files) {
+  const h = crypto.createHash('sha256');
+  for (const f of files) h.update(fs.readFileSync(f));
+  return h.digest('hex').slice(0, 12);
+}
+
+function writeVariableMap() {
+  if (!variableMap.size) return null; // reported with the other warnings, at the end
+  const seen = new Set();
+  const named = [];
+  for (const s of sources) {
+    if (seen.has(s.file)) continue; // two patterns can match one file — hash it once
+    seen.add(s.file);
+    named.push({ name: path.relative(SRC_DIR, s.file).split(path.sep).join('/'), file: s.file });
+  }
+  named.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+
+  const payload = {
+    $meta: {
+      generator: 'build-tokens.js',
+      exportHash: hashSources(named.map((n) => n.file)),
+      sources: named.map((n) => n.name),
+      variableCount: variableMap.size,
+    },
+    // Sorted by code reference so the file reads like the token tree and diffs stay small when a
+    // variable moves in the export.
+    variables: Object.fromEntries(
+      [...variableMap.entries()].sort(([idA, a], [idB, b]) =>
+        a.ref === b.ref ? (idA < idB ? -1 : 1) : a.ref < b.ref ? -1 : 1,
+      ),
+    ),
+  };
+  const out = path.join(OUT_DIR, VARIABLE_MAP_FILE);
+  fs.writeFileSync(out, JSON.stringify(payload, null, 2) + '\n');
+  return out;
+}
+
+const variableMapFile = writeVariableMap();
+
 // ─── Report ───────────────────────────────────────────────────────────────────
 console.log('[build-tokens] Generated:');
 for (const w of written) console.log(`  ${rel(OUT_DIR)}/${w}`);
@@ -496,7 +639,23 @@ for (const [mode, t] of Object.entries(themes)) {
   );
 }
 console.log(`  total leaves   : ${leafCount}, aliases resolved : ${aliasCount}`);
-
+if (variableMapFile) {
+  console.log(
+    `  variable map   : ${variableMap.size} variables → ${rel(OUT_DIR)}/${VARIABLE_MAP_FILE}`,
+  );
+} else {
+  console.warn(
+    `\n[build-tokens] no leaf in the export carries $extensions["${VARIABLE_ID_EXT}"], so no ` +
+      `${VARIABLE_MAP_FILE} was written.`,
+  );
+  console.warn(
+    '  EXACT variable resolution will be unavailable — figma-extract falls back to matching tokens',
+  );
+  console.warn(
+    '  by VALUE, which ties whenever two tokens share one. Re-export the variables with a tool that',
+  );
+  console.warn('  preserves the variable ids to switch it back on.');
+}
 if (unrouted.length) {
   console.warn(`\n[build-tokens] ${unrouted.length} group(s) in the export have no destination:`);
   for (const g of unrouted.slice(0, 20)) console.warn(`    - ${g}`);

@@ -17,7 +17,10 @@
     "figma:text": "node scripts/figma-text.js",
     "tokens:build": "node scripts/build-tokens.js",
     "tokens:typography": "node scripts/build-typography.js",
-    "config:check": "node scripts/config-check.js"
+    "config:check": "node scripts/config-check.js",
+    "drift:check": "node scripts/figma-drift.js",
+    "drift:update": "node scripts/figma-drift.js --update",
+    "test": "node --test"
   },
   "dependencies": {
     "pngjs": "^7.0.0"

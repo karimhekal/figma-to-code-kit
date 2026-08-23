@@ -96,10 +96,15 @@ single most common way a component comes back from review.
   Figma, which is often an authoring bug (a hand-typed radius nobody meant) and sometimes a
   deliberate one-off. Flag the suspicious ones to design and reference the *intended* token
   in code. The flag says "ask", not "wrong".
-- **Prefer the component's OWN token set over a palette token that matched only by value.**
-  The extractor suggests by resolved value, so two tokens can tie. Palette tokens are usually
-  mode-agnostic: picking one that happens to equal the current mode's value silently breaks
-  the other mode. When two tokens share a value, take the one scoped to the component.
+- **`✓exact` is the answer; a suggestion without it is a shortlist.** `⇒ token: X ✓exact` was
+  resolved from the variable's id — reference `X` and move on. Without `✓exact` the extractor
+  matched by resolved value, so two tokens can tie: **prefer the component's OWN token set over
+  a palette token.** Palette tokens are usually mode-agnostic, and picking one that happens to
+  equal the current mode's value silently breaks the other mode.
+- **`bound to a variable missing from your export` is a pipeline defect, not a code decision.**
+  The design gained a variable your generated tokens have never seen. Re-export the variables
+  and re-run the token build (`commands.tokensBuild`), then re-extract — do not paste the
+  value-matched guess and move on.
 - Spacing follows `tokens.spacing`: when `tokenizedInFigma` is false the ramp is code-owned,
   so gap/padding can never come back `✓bound` — the extractor suggests the ramp reference
   instead. Never satisfy the "no literals" rule by reaching for a legacy module listed in

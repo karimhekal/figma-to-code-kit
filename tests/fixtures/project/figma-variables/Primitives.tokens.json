@@ -1,0 +1,56 @@
+{
+  "color": {
+    "brand": {
+      "100": {
+        "$type": "color",
+        "$value": { "components": [0.9098, 0.902, 0.9961], "alpha": 1, "hex": "#E8E6FE" },
+        "$extensions": { "com.figma.variableId": "VariableID:10:100" }
+      },
+      "500": {
+        "$type": "color",
+        "$value": { "components": [0.2275, 0.1843, 0.9412], "alpha": 1, "hex": "#3A2FF0" },
+        "$extensions": { "com.figma.variableId": "VariableID:10:101" }
+      },
+      "900": {
+        "$type": "color",
+        "$value": { "components": [0.1059, 0.0824, 0.5882], "alpha": 1, "hex": "#1B1596" },
+        "$extensions": { "com.figma.variableId": "VariableID:10:102" }
+      }
+    },
+    "neutral": {
+      "0": {
+        "$type": "color",
+        "$value": { "components": [1, 1, 1], "alpha": 1, "hex": "#FFFFFF" },
+        "$extensions": { "com.figma.variableId": "VariableID:10:110" }
+      },
+      "900": {
+        "$type": "color",
+        "$value": { "components": [0.0627, 0.0627, 0.0784], "alpha": 1, "hex": "#101014" },
+        "$extensions": { "com.figma.variableId": "VariableID:10:111" }
+      }
+    },
+    "scrim": {
+      "$type": "color",
+      "$value": { "components": [0, 0, 0], "alpha": 0.4 },
+      "$extensions": { "com.figma.variableId": "VariableID:10:120" }
+    }
+  },
+
+  "Corner radius": {
+    "4": {
+      "$type": "number",
+      "$value": 4,
+      "$extensions": { "com.figma.variableId": "VariableID:20:800" }
+    },
+    "8": {
+      "$type": "number",
+      "$value": 8,
+      "$extensions": { "com.figma.variableId": "VariableID:20:801" }
+    },
+    "16": {
+      "$type": "number",
+      "$value": 16,
+      "$extensions": { "com.figma.variableId": "VariableID:20:802" }
+    }
+  }
+}

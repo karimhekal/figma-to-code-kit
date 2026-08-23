@@ -160,15 +160,35 @@ Type: array of entries, each either
 object keyed by theme mode: it indexes one mode's contents but suggests the reference *without* the
 mode key, because that is how the code reads it through the theme accessor.
 
-**Why by value and not by name:** Figma's Variables REST API is Enterprise-only, so the kit cannot
-resolve a bound variable's *name* on most plans. It detects that a property **is** bound (from
-`boundVariables`, present on every plan) and then matches the resolved value against these modules
-to name the token in your code. Two tokens sharing a value can tie — treat a suggestion as a
-shortlist, not a verdict.
+**This is the FALLBACK, not the primary path.** For a value that is bound to a Figma variable, the
+extractor resolves the token **exactly**, by id, from
+`<paths.tokensDir>/variable-map.generated.json` — written by the token build, no configuration and
+no `tokens.index` required. Those print `✓exact` and there is nothing to choose between.
 
-Omitted or wrong: `[warn] could not index …` and the extractor runs as a plain extractor. Nothing
-crashes; you lose the half of the output that connects Figma to your codebase, which is most of the
-reason to run it.
+Value matching covers what exact resolution cannot: values that are **not** bound (a `⚠LITERAL`
+hardcoded in Figma — the case where you most want to know which token it *should* have been), and
+bound values whose variable is missing from your export. Matching by value ties — `#FFFFFF` can be
+three tokens — so treat a suggestion without `✓exact` as a shortlist, not a verdict.
+
+Omitted or wrong: `[warn] could not index …` and value matching switches off. Exact resolution is
+unaffected, because it does not go through this index at all.
+
+---
+
+## The variable map
+
+Not a config field — a generated file, listed here because it decides how the extractor's token
+suggestions read. `build-tokens.js` writes `variable-map.generated.json` into `paths.tokensDir`,
+mapping each Figma variable id to the code reference that token became. `figma-extract.js` reads it
+from that same fixed location.
+
+Nothing to configure beyond `paths.tokensDir`. What you *do* need is an export that is current: a
+variable added to the design after your last export has no entry, and the extractor calls that out
+inline and tallies it at the end (`bound to a variable missing from your export`) instead of quietly
+picking a wrong token. When you see that tally, re-export the variables and re-run the token build.
+
+Missing entirely — no token build yet, `paths.tokensDir` unset, or an export whose plugin dropped
+the variable ids — costs one `[warn]` and falls back to value matching.
 
 ---
 
@@ -412,9 +432,9 @@ that knowledge is worth something, instead of being re-derived next quarter by t
 | `files.volatile` | No behaviour change; the agent loses the "these ids renumber" warning. |
 | `design.frameWidth` | `figma-pixel --design` needs the width passed explicitly. |
 | `design.compareWidths` / `modes` | No compare reminder after a render. |
-| `paths.tokensDir` | **Both token builds cannot run.** |
+| `paths.tokensDir` | **Both token builds cannot run**, and there is nowhere to read the variable map from — so token resolution is never exact. |
 | `paths.iconRegistry` / `graphicsDir` | `figma-icon` / `figma-asset` need `--out` per call. |
-| **`tokens.index`** | → **token suggestions** in the extractor. Without it, values print unmapped. |
+| **`tokens.index`** | → **value-matched** token suggestions, the fallback for unbound values. Without it, unbound values print unmapped; exact resolution still works. |
 | **`tokens.spacing.rampPath`** | → **spacing suggestions + off-grid detection.** |
 | `tokens.spacing.tokenizedInFigma` | Wrong value = false literals, or false off-grid noise. |
 | **`tokens.typography.rampPath`** | → **text variant suggestions.** |

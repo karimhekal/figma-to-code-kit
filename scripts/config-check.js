@@ -38,6 +38,7 @@ const fs = require('fs');
 const path = require('path');
 const { loadConfig, resolvePath, loadTokenModule } = require('./figma-config');
 const { loadFigmaToken, fetchRetry } = require('./figma-net');
+const { exportHashStatus, normalizeId, MAP_NAME, BASELINE_INDEX } = require('./figma-drift');
 
 const argv = process.argv.slice(2);
 if (argv.includes('--help') || argv.includes('-h')) {
@@ -536,7 +537,80 @@ if (!Object.keys(cfg.variables.groups || {}).length) {
   warn('variables.groups is empty — every top-level group in the export lands in the default bucket.');
 }
 
-// ─── 10. optional: prove the token can read the file ──────────────────────────
+// ─── 10. drift detection ──────────────────────────────────────────────────────
+// Two silent failures live here, and neither one breaks a build:
+//   • the design file moved and nobody re-baselined (needs the network — figma-drift does that)
+//   • the variables export moved and the token build never re-ran (detectable right here, offline,
+//     by comparing the export on disk against the hash build-tokens stamped into the variable map)
+// The second is the common one, because dropping an export in is the step a human does and
+// re-running the build is the step a human forgets.
+section('Drift detection');
+const DRIFT = cfg.drift || {};
+const driftNodes = (Array.isArray(DRIFT.nodes) ? DRIFT.nodes : []).filter((n) => n && n.id);
+const baselineDir = resolvePath(cfg, DRIFT.baselineDir || 'figma-baselines');
+const baselineIndex = path.join(baselineDir, BASELINE_INDEX);
+
+if (!driftNodes.length) {
+  warn('drift.nodes is empty — the VISUAL layer is off (a spacing or icon change cannot be seen).');
+  note('Name a few canonical components, then run `node scripts/figma-drift.js --update`.');
+} else {
+  ok(`drift.nodes: ${driftNodes.length} node(s) [${driftNodes.map((n) => n.name || n.id).join(', ')}]`);
+}
+
+let baselineJson = null;
+if (fs.existsSync(baselineIndex)) {
+  try {
+    baselineJson = JSON.parse(fs.readFileSync(baselineIndex, 'utf8'));
+  } catch (e) {
+    bad(`${rel(baselineIndex)} could not be parsed: ${e.message}`);
+  }
+} else if (driftNodes.length) {
+  warn(`no baselines captured yet in ${rel(baselineDir)} — run \`node scripts/figma-drift.js --update\`.`);
+}
+
+if (baselineJson) {
+  const meta = baselineJson.$meta || {};
+  const nodes = baselineJson.nodes || {};
+  const count = Object.keys(nodes).length;
+  ok(`${count} baselined node(s) in ${rel(baselineDir)}`);
+  note(`captured ${meta.capturedAt || '(unknown)'} · design lastModified ${meta.figmaLastModified || '(not recorded)'}`);
+  // A baseline.json naming an image that is not there is explicit rot, not an unused feature —
+  // the check would silently skip that node and report a clean run forever.
+  const missingImages = Object.entries(nodes)
+    .filter(([, e]) => !e || !e.file || !fs.existsSync(path.join(baselineDir, e.file)))
+    .map(([id, e]) => (e && e.name) || id);
+  if (missingImages.length) {
+    bad(`baseline image missing for: ${missingImages.join(', ')} — re-run \`node scripts/figma-drift.js --update\`.`);
+  }
+  const notCaptured = driftNodes.filter((n) => !nodes[normalizeId(n.id)]);
+  if (notCaptured.length) {
+    warn(`configured but not baselined: ${notCaptured.map((n) => n.name || n.id).join(', ')} — run --update.`);
+  }
+  const orphans = Object.keys(nodes).filter((id) => !driftNodes.some((n) => normalizeId(n.id) === id));
+  if (orphans.length) {
+    warn(`baselined but no longer in drift.nodes: ${orphans.join(', ')} — --update prunes them.`);
+  }
+}
+
+const hashStatus = exportHashStatus(cfg);
+if (hashStatus.state === 'fresh') {
+  ok(`${MAP_NAME}: generated tokens match the export on disk (${hashStatus.current})`);
+} else if (hashStatus.state === 'stale') {
+  bad(`${MAP_NAME} records export hash ${hashStatus.recorded}, but the export on disk hashes ${hashStatus.current}.`);
+  note(`The export was updated and the token build never re-ran. Run \`${tokensBuildCmd}\`.`);
+  if (Array.isArray(hashStatus.recordedSources)) {
+    const added = hashStatus.sources.filter((s) => !hashStatus.recordedSources.includes(s));
+    const removed = hashStatus.recordedSources.filter((s) => !hashStatus.sources.includes(s));
+    if (added.length) note(`new file(s): ${added.join(', ')}`);
+    if (removed.length) note(`missing file(s): ${removed.join(', ')}`);
+  }
+} else if (hashStatus.state === 'unreadable') {
+  bad(`${rel(hashStatus.file)} could not be parsed: ${hashStatus.reason}`);
+} else {
+  warn(`token-build freshness check is off — ${hashStatus.reason}.`);
+}
+
+// ─── 11. optional: prove the token can read the file ──────────────────────────
 async function checkOnline() {
   section('Figma API (--online)');
   if (!cfg.files.default) {

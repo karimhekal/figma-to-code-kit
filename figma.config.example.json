@@ -125,6 +125,16 @@
     "faceFixes": {}
   },
 
+  "// drift": "Drift detection (figma-drift.js): the design is a committed SNAPSHOT here, so a designer's change today lands in NOTHING — the build stays green shipping last month's values. 'nodes' are the CANONICAL components to baseline as rendered PNGs — a button, an input, a card. A handful, NOT everything: this is meant to run on a schedule, every node costs a render, and three baselines somebody reads beat forty nobody does. 'tolerance' is the per-channel (0-255) slack that stops PNG encoder noise from reporting a change. Empty 'nodes' leaves the visual layer off and only the cheap tripwires run.",
+  "drift": {
+    "baselineDir": "figma-baselines",
+    "nodes": [
+      { "id": "1234:5678", "name": "button" },
+      { "id": "2468:1357", "name": "input" }
+    ],
+    "tolerance": 2
+  },
+
   "// commands": "Your project's real commands. config-check.js verifies these resolve, and the skill tells the agent to run them.",
   "commands": { "tokensBuild": "npm run tokens:build", "validate": "npm run validate" },
 
