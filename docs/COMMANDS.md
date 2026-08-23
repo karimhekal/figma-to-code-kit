@@ -115,7 +115,7 @@ node scripts/figma-pixel.js build.png --row 68    #  px : 0-24  80-104   ← 8px
 There is no automatic diff between the two — you read two sets of numbers and they either agree or
 they don't. That is deliberate: the mismatch tells you *where* and *by how much*, which a
 pass/fail would not. (For an automated image-vs-image comparison over time, that is
-[`figma-drift.js`](#figma-driftjs--validate-that-the-design-has-not-moved-underneath-you).)
+[`figma-drift.js`](#figma-driftjs--has-the-design-moved-without-us).)
 
 ### `figma-text.js` — translatable copy
 
